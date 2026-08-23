@@ -2,104 +2,130 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestion de Stock - Terrain</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 15px; background-color: #f4f6f9; color: #333; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        .search-section { margin-bottom: 20px; padding: 15px; background: #eef2f7; border-radius: 6px; position: relative; }
-        label { font-weight: bold; display: block; margin-top: 8px; margin-bottom: 3px; font-size: 14px; }
-        input, select { padding: 8px; width: 100%; max-width: 400px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
-        button { padding: 10px 15px; font-size: 16px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
-        button:hover { background: #004085; }
-        .btn-export { background: #28a745; float: right; margin-top: 0; }
-        .btn-export:hover { background: #218838; }
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+            margin: 0; padding: 10px; background-color: #f4f6f9; color: #333; 
+        }
+        .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        
+        h2 { font-size: 1.3rem; margin-top: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        h3 { font-size: 1.1rem; margin-bottom: 8px; color: #0056b3; }
+        
+        .search-section { margin-bottom: 15px; padding: 12px; background: #eef2f7; border-radius: 6px; position: relative; }
+        label { font-weight: bold; display: block; margin-top: 8px; margin-bottom: 4px; font-size: 0.9rem; }
+        
+        /* Champs de saisie optimisés mobile (police >= 16px évite le zoom automatique sur iPhone) */
+        input, select { padding: 12px; width: 100%; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
+        
+        button { 
+            padding: 12px 15px; font-size: 16px; background: #0056b3; color: white; border: none; 
+            border-radius: 6px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold; 
+        }
+        button:active { background: #004085; }
+        .btn-export { background: #28a745; width: auto; padding: 8px 12px; font-size: 0.9rem; margin-top: 0; }
 
-        /* Suggestions Symbole et Listes */
+        /* Suggestions et listes adaptées tactile */
         #suggestions, #listePlanResultats {
-            position: absolute; background: white; border: 1px solid #ccc; width: 100%; max-width: 400px;
-            max-height: 250px; overflow-y: auto; z-index: 10; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: absolute; background: white; border: 1px solid #ccc; left: 0; right: 0;
+            max-height: 280px; overflow-y: auto; z-index: 10; border-radius: 0 0 6px 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         }
         #listePlanResultats { position: static; max-width: 100%; margin-top: 10px; border: none; box-shadow: none; background: transparent; }
-        .suggestion-item { padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #eee; background: white; }
-        .suggestion-item:hover { background: #f0f0f0; }
-        .suggestion-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+        
+        .suggestion-item { padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #eee; background: white; }
+        .suggestion-item:active { background: #e2e8f0; }
+        .suggestion-item img { width: 70px; height: 70px; object-fit: cover; border-radius: 6px; border: 1px solid #ccc; flex-shrink: 0; }
 
-        /* Résultat et Formulaire d'emplacement */
-        #resultat { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
-        .result-flex { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
-        .result-flex img { width: 120px; height: 120px; object-fit: cover; border: 1px solid #ccc; border-radius: 6px; }
+        /* Zone Résultat / Fiche Article */
+        #resultat { margin-top: 15px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
+        .result-flex { display: flex; gap: 15px; align-items: flex-start; flex-direction: row; }
+        .result-flex img { width: 130px; height: 130px; object-fit: cover; border: 1px solid #ccc; border-radius: 6px; flex-shrink: 0; }
+        .result-infos { font-size: 0.9rem; word-break: break-word; }
+        .result-infos p { margin: 4px 0; }
 
-        /* Popup Modal d'alerte doublon */
-        #modalExistant { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        /* Popup Modal tactile */
+        #modalExistant { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
+        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+        .modal-buttons button { margin-top: 0; }
+
+        /* Media queries pour petits smartphones */
+        @media (max-width: 400px) {
+            .result-flex { flex-direction: column; align-items: center; text-align: center; }
+            .result-flex img { width: 150px; height: 150px; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Gestion de Stock Terrain <button class="btn-export" onclick="exporterStockGlobalCSV()">Exporter CSV Global</button></h2>
-    <div style="clear: both;"></div>
+    <h2>
+        <span>Stock Terrain</span>
+        <button class="btn-export" onclick="exporterStockGlobalCSV()">Export CSV</button>
+    </h2>
 
-    <!-- Recherche par Plan (ID court) -->
+    <!-- Recherche par Plan -->
     <div class="search-section">
         <h3>1. Recherche par Plan</h3>
-        <label>Numéro de Plan (6 chiffres) :</label>
-        <input type="text" id="inputPlan" placeholder="Ex: 123456">
-        <button onclick="rechercherParPlan()">Rechercher</button>
-        <!-- Conteneur pour afficher la liste des miniatures si plusieurs REP -->
+        <label>N° de Plan (6 chiffres) :</label>
+        <div style="display: flex; gap: 8px;">
+            <input type="tel" id="inputPlan" placeholder="Ex: 123456" style="flex: 1;">
+            <button onclick="rechercherParPlan()" style="margin-top:0; width: auto; padding: 12px 18px;">OK</button>
+        </div>
         <div id="listePlanResultats"></div>
     </div>
 
-    <!-- Recherche par Symbole (ID long) avec autocomplétion -->
+    <!-- Recherche par Symbole -->
     <div class="search-section" style="position: relative;">
         <h3>2. Recherche par Symbole</h3>
-        <label>Symbole (Illisible ? Tapez dès le 5e chiffre) :</label>
-        <input type="text" id="inputSymbole" placeholder="Ex: 08804001" autocomplete="off">
+        <label>Symbole (Tapez dès le 5e chiffre) :</label>
+        <input type="tel" id="inputSymbole" placeholder="Ex: 08804001" autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
-    <!-- Zone d'affichage et saisie du lieu de stockage -->
+    <!-- Fiche Article & Localisation -->
     <div id="resultat">
-        <h3>Fiche Article & Emplacement</h3>
+        <h3>Fiche Pièce</h3>
         <div class="result-flex">
             <img id="imgPiece" src="" alt="Miniature">
-            <div>
+            <div class="result-infos">
                 <p><strong>Plan :</strong> <span id="resPlan"></span></p>
                 <p><strong>REP :</strong> <span id="resRep"></span></p>
-                <p><strong>Symbole :</strong> <span id="resSymbole"></span></p>
-                <p><strong>Intitulé :</strong> <span id="resIntitule"></span></p>
+                <p><strong>Symb :</strong> <span id="resSymbole"></span></p>
+                <p><strong style="color: #0056b3;"><span id="resIntitule"></span></strong></p>
             </div>
         </div>
 
-        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+        <hr style="margin: 12px 0; border: 0; border-top: 1px solid #eee;">
 
-        <h4>Définir le Lieu de Stockage</h4>
+        <h3 style="margin-top: 0;">Emplacement de stockage</h3>
         <label>Site :</label>
-        <input type="text" id="stockSite" placeholder="Ex: Dépôt Paris Sud">
+        <input type="text" id="stockSite" placeholder="Ex: Dépôt Paris">
         
         <label>Bâtiment :</label>
         <input type="text" id="stockBatiment" placeholder="Ex: Hall B">
         
         <label>Rang :</label>
-        <input type="text" id="stockRang" placeholder="Ex: Rayon 4 - Étagère 2">
+        <input type="text" id="stockRang" placeholder="Ex: Étagère 4">
         
         <label>Quantité :</label>
-        <input type="number" id="stockQuantite" value="1" min="1">
+        <input type="number" id="stockQuantite" value="1" min="1" pattern="[0-9]*">
         
-        <button onclick="validerStockage()" style="background: #28a745; width: 100%;">Enregistrer l'emplacement</button>
+        <button onclick="validerStockage()" style="background: #28a745; margin-top: 15px;">Enregistrer</button>
     </div>
 </div>
 
-<!-- Popup si la pièce existe déjà -->
+<!-- Modal Doublon -->
 <div id="modalExistant">
     <div class="modal-content">
         <h3>Pièce déjà référencée !</h3>
-        <p id="modalTexteInfo"></p>
+        <p id="modalTexteInfo" style="font-size: 0.95rem; line-height: 1.4;"></p>
         <div class="modal-buttons">
-            <button onclick="fusionnerQuantite()" style="background: #28a745; flex: 1;">Valider (Ajouter)</button>
-            <button onclick="forcerNouvelEmplacement()" style="background: #dc3545; flex: 1;">Suivant (Ailleurs)</button>
+            <button onclick="fusionnerQuantite()" style="background: #28a745;">Ajouter (+)</button>
+            <button onclick="forcerNouvelEmplacement()" style="background: #dc3545;">Ailleurs</button>
         </div>
     </div>
 </div>
