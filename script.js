@@ -346,3 +346,43 @@ function parserCSVEnTableau(texte) {
     }
     return resultat;
 }
+// --- PARTAGE DU STOCK (API NATIVE DU TÉLÉPHONE) ---
+async function partagerStock() {
+    if (stockGlobal.length === 0) {
+        alert("Aucune donnée de stock à partager.");
+        return;
+    }
+
+    // 1. Génération du contenu CSV
+    let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
+    stockGlobal.forEach(item => {
+        csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
+    });
+
+    // 2. Création d'un fichier virtuel exploitable par le système
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    let fichier = new File([blob], "stock_global.csv", { type: 'text/csv' });
+
+    // 3. Vérification si le téléphone supporte le partage de fichiers
+    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+        try {
+            await navigator.share({
+                title: 'Mise à jour stock terrain caténaire',
+                text: 'Voici le fichier de mise à jour du stock terrain.',
+                files: [fichier]
+            });
+            
+            // Nettoyage de la sauvegarde locale après un partage réussi
+            localStorage.removeItem('stock_local_sauvegarde');
+            console.log("Partage réussi et mémoire nettoyée.");
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error("Erreur lors du partage :", error);
+            }
+        }
+    } else {
+        // Fallback de sécurité si le navigateur mobile bloque le partage de fichiers direct
+        alert("Votre appareil ne prend pas en charge le partage direct de fichiers. Le fichier va être téléchargé à la place.");
+        exporterStockGlobalCSV();
+    }
+}
