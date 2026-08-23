@@ -1,5 +1,5 @@
 // URL de votre dépôt central de miniatures GitHub (les images sont nommées par leur symbole ex: 08804001.jpg)
-const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/depot-miniatures/main/";
+const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 
 let catalogueGlobal = []; // Contient le mapping.json
 let stockGlobal = [];     // Contient l'état du stock (fusion local + export)
