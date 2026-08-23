@@ -6,18 +6,30 @@ let stockGlobal = [];
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    // 1. Chargement simultané du mapping.json et du stock_global.csv depuis GitHub
+    // 1. Chargement du catalogue depuis GitHub et vérification s'il y a des données sauvegardées localement dans le téléphone
     Promise.all([
-        fetch(GITHUB_DEPOT_URL + 'mapping.json').then(res => res.json()),
-        fetch('stock_global.csv').then(res => res.text()).catch(() => "")
+        fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
+        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ])
-    .then(([catalogueData, csvText]) => {
+    .then(([catalogueData, stockSauvegarde]) => {
         catalogueGlobal = catalogueData;
         console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
-        if (csvText) {
-            stockGlobal = parserCSVEnTableau(csvText);
-            console.log("Stock global chargé :", stockGlobal.length, "entrées.");
+        if (stockSauvegarde) {
+            // Si le téléphone a gardé des modifications en mémoire, on les récupère en priorité
+            stockGlobal = JSON.parse(stockSauvegarde);
+            console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
+        } else {
+            // Sinon, on charge le fichier stock_global.csv initial s'il existe
+            fetch('stock_global.csv')
+                .then(res => res.text())
+                .then(csvText => {
+                    if (csvText) {
+                        stockGlobal = parserCSVEnTableau(csvText);
+                        console.log("Stock global initial chargé :", stockGlobal.length, "entrées.");
+                    }
+                })
+                .catch(() => console.log("Aucun fichier CSV de base, démarrage à vide."));
         }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
@@ -113,7 +125,7 @@ function afficherSuggestionsSymbole(prefixe) {
     matches.forEach(article => {
         let div = document.createElement('div');
         div.className = 'suggestion-item';
-        let imgUrl = `${GITHUB_DEPOT_URL}${article.symbole}.jpg`;
+        let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
 
         div.innerHTML = `
             <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
@@ -135,7 +147,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE & STOCK ACTUEL ---
+// --- AFFICHAGE DE LA FICHE & TOUS LES STOCKS ACTUELS ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -147,22 +159,31 @@ function afficherFiche(article) {
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
-    let existant = stockGlobal.find(item => item.symbole === article.symbole && item.rep === article.rep);
+    // On cherche TOUTES les lignes dans le stock qui correspondent à ce symbole et ce REP
+    let existants = stockGlobal.filter(item => item.symbole === article.symbole && item.rep === article.rep);
     let divStock = document.getElementById('infoStockActuel');
     
-    if (existant) {
+    if (existants.length > 0) {
         divStock.style.display = 'block';
         divStock.style.backgroundColor = '#d4edda';
         divStock.style.border = '1px solid #c3e6cb';
         divStock.style.color = '#155724';
-        divStock.innerHTML = `<strong>📦 PIÈCE EN STOCK :</strong><br>
-            📍 Site : <b>${existant.site}</b> | Bât : <b>${existant.batiment}</b><br>
-            📍 Rang : <b>${existant.rang}</b><br>
-            📊 Quantité actuelle : <strong style="font-size:1.1rem;">${existant.quantite}</strong>`;
         
-        document.getElementById('stockSite').value = existant.site;
-        document.getElementById('stockBatiment').value = existant.batiment;
-        document.getElementById('stockRang').value = existant.rang;
+        let htmlStock = `<strong>📦 PIÈCE DÉJÀ EN STOCK (${existants.length} emplacement${existants.length > 1 ? 's' : ''}) :</strong><br><div style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">`;
+        
+        existants.forEach((ex, idx) => {
+            htmlStock += `<div style="background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;">
+                📍 <b>#${idx + 1}</b> - Site : <b>${ex.site}</b> | Bât : <b>${ex.batiment}</b> | Rang : <b>${ex.rang}</b> | Qte : <b>${ex.quantite}</b>
+            </div>`;
+        });
+        htmlStock += `</div>`;
+        
+        divStock.innerHTML = htmlStock;
+        
+        // Par défaut, on pré-remplit les champs avec le premier emplacement trouvé (ou le dernier)
+        document.getElementById('stockSite').value = existants[0].site;
+        document.getElementById('stockBatiment').value = existants[0].batiment;
+        document.getElementById('stockRang').value = existants[0].rang;
     } else {
         divStock.style.display = 'block';
         divStock.style.backgroundColor = '#fff3cd';
@@ -217,6 +238,10 @@ function fusionnerQuantite() {
     let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
     if (existant) {
         existant.quantite += qteAjout;
+        
+        // 🔒 SAUVEGARDE AUTOMATIQUE DANS LA MÉMOIRE DU TÉLÉPHONE
+        localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
+        
         fermerModalEtReinitialiser();
     }
 }
@@ -248,6 +273,9 @@ function sauvegarderLigneStock(site, batiment, rang, qte, remplacer) {
     } else if (index === -1) {
         stockGlobal.push(nouvelleEntree);
     }
+
+    // 🔒 SAUVEGARDE AUTOMATIQUE DANS LA MÉMOIRE DU TÉLÉPHONE
+    localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
     fermerModalEtReinitialiser();
 }
@@ -291,6 +319,9 @@ function exporterStockGlobalCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    // 🧹 Une fois l'export réalisé, on nettoie la sauvegarde temporaire du téléphone
+    localStorage.removeItem('stock_local_sauvegarde');
 }
 
 // --- PARSER CSV ---
