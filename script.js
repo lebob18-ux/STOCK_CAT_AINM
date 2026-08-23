@@ -2,10 +2,17 @@
 const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 
 let catalogueGlobal = []; 
-let stockGlobal = [];     
+let stockGlobal = [];      
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    // --- ENREGISTREMENT DU SERVICE WORKER (PWA) ---
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker enregistré !', reg.scope))
+            .catch(err => console.log('Erreur Service Worker :', err));
+    }
+
     Promise.all([
         fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
@@ -51,7 +58,8 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('inputSymbole').value = '';
         document.getElementById('suggestions').innerHTML = '';
     });
-// ➕ AJOUTEZ CE BLOC ICI :
+
+    // Sélection automatique du texte de la quantité au clic pour taper directement
     const inputQuantite = document.getElementById('stockQuantite');
     inputQuantite.addEventListener('focus', function() {
         this.select();
@@ -160,7 +168,6 @@ function afficherFiche(article) {
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
-    // Recherche de TOUS les emplacements de cette pièce (gère parfaitement plusieurs rangs/sites)
     let existants = stockGlobal.filter(item => item.symbole === article.symbole && item.rep === article.rep);
     let divStock = document.getElementById('infoStockActuel');
     
@@ -174,7 +181,7 @@ function afficherFiche(article) {
         <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez sur un emplacement pour y rajouter de la quantité, ou remplissez les champs en bas pour créer un nouveau lieu :</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
         
-        existants.forEach((ex, idx) => {
+        existants.forEach((ex) => {
             let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
             htmlStock += `
                 <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
@@ -186,7 +193,6 @@ function afficherFiche(article) {
         htmlStock += `</div>`;
         divStock.innerHTML = htmlStock;
         
-        // Par défaut, on laisse vide ou pré-rempli pour un nouveau
         document.getElementById('stockSite').value = "";
         document.getElementById('stockBatiment').value = "";
         document.getElementById('stockRang').value = "";
@@ -206,17 +212,14 @@ function afficherFiche(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
-// Quand on clique sur un emplacement existant dans la liste
 function selectionnerEmplacementExistant(existant) {
     document.getElementById('stockSite').value = existant.site;
     document.getElementById('stockBatiment').value = existant.batiment;
     document.getElementById('stockRang').value = existant.rang;
-    
-    // Optionnel : un petit effet visuel ou focus sur la quantité pour l'incrémenter directement
     document.getElementById('stockQuantite').focus();
 }
 
-// --- VALIDATION DIRECTE (SANS AUCUN POPUP) ---
+// --- VALIDATION DIRECTE ---
 function validerStockage() {
     if (!articleCourant) return;
 
@@ -225,13 +228,11 @@ function validerStockage() {
     let rang = document.getElementById('stockRang').value.trim();
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
 
-    // Seule alerte tolérée : s'il manque des données obligatoires
     if (!site || !batiment || !rang) {
         alert("Veuillez remplir tous les champs obligatoires (Site, Bâtiment, Rang) ou cliquer sur un emplacement existant.");
         return;
     }
 
-    // On cherche si cet emplacement précis existe déjà pour ce symbole + rep
     let index = stockGlobal.findIndex(item => 
         item.symbole === articleCourant.symbole && 
         item.rep === articleCourant.rep && 
@@ -241,10 +242,8 @@ function validerStockage() {
     );
 
     if (index !== -1) {
-        // Si l'emplacement exact existe déjà, on additionne la quantité
         stockGlobal[index].quantite += qte;
     } else {
-        // Sinon, on ajoute une nouvelle ligne d'emplacement distinct
         stockGlobal.push({
             plan: articleCourant.plan,
             rep: articleCourant.rep,
@@ -257,10 +256,8 @@ function validerStockage() {
         });
     }
 
-    // 🔒 SAUVEGARDE AUTOMATIQUE DANS LA MÉMOIRE DU TÉLÉPHONE
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
-    // Réinitialisation propre et silencieuse sans aucun popup
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
@@ -270,14 +267,12 @@ function validerStockage() {
     articleCourant = null;
 }
 
-// Echappement CSV
 function echapperCSV(texte) {
     if (!texte) return '""';
     let textePropre = String(texte).replace(/"/g, '""');
     return `"${textePropre}"`;
 }
 
-// --- EXPORT DU FICHIER CSV ---
 function exporterStockGlobalCSV() {
     if (stockGlobal.length === 0) {
         alert("Aucune donnée de stock à exporter.");
@@ -298,11 +293,9 @@ function exporterStockGlobalCSV() {
     link.click();
     document.body.removeChild(link);
 
-    // Nettoyage de la sauvegarde locale après export réussi
     localStorage.removeItem('stock_local_sauvegarde');
 }
 
-// --- PARSER CSV ---
 function parserCSVEnTableau(texte) {
     let lignes = texte.split('\n');
     let resultat = [];
@@ -346,6 +339,7 @@ function parserCSVEnTableau(texte) {
     }
     return resultat;
 }
+
 // --- PARTAGE DU STOCK (API NATIVE DU TÉLÉPHONE) ---
 async function partagerStock() {
     if (stockGlobal.length === 0) {
@@ -353,17 +347,14 @@ async function partagerStock() {
         return;
     }
 
-    // 1. Génération du contenu CSV
     let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
     stockGlobal.forEach(item => {
         csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
     });
 
-    // 2. Création d'un fichier virtuel exploitable par le système
     let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     let fichier = new File([blob], "stock_global.csv", { type: 'text/csv' });
 
-    // 3. Vérification si le téléphone supporte le partage de fichiers
     if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
         try {
             await navigator.share({
@@ -372,7 +363,6 @@ async function partagerStock() {
                 files: [fichier]
             });
             
-            // Nettoyage de la sauvegarde locale après un partage réussi
             localStorage.removeItem('stock_local_sauvegarde');
             console.log("Partage réussi et mémoire nettoyée.");
         } catch (error) {
@@ -381,7 +371,6 @@ async function partagerStock() {
             }
         }
     } else {
-        // Fallback de sécurité si le navigateur mobile bloque le partage de fichiers direct
         alert("Votre appareil ne prend pas en charge le partage direct de fichiers. Le fichier va être téléchargé à la place.");
         exporterStockGlobalCSV();
     }
