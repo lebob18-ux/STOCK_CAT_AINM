@@ -333,3 +333,46 @@ function parserCSVEnTableau(texte) {
     }
     return resultat;
 }
+// --- ENVOI DU STOCK PAR E-MAIL ---
+function envoyerStockParEmail() {
+    if (stockGlobal.length === 0) {
+        alert("Aucune donnée de stock à envoyer.");
+        return;
+    }
+
+    // 1. Génération du contenu CSV
+    let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
+    stockGlobal.forEach(item => {
+        csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
+    });
+
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    
+    // 2. Vérification si le navigateur mobile supporte le partage direct de fichiers (Fichiers joints réels)
+    if (navigator.canShare && navigator.canShare({ files: [new File([blob], "stock_global.csv", { type: "text/csv" })] })) {
+        let fichier = new File([blob], "stock_global.csv", { type: "text/csv" });
+        navigator.share({
+            title: 'Mise à jour Stock Terrain',
+            text: 'Voici le fichier de mise à jour du stock suite au rangement.',
+            files: [fichier]
+        }).catch(err => console.log("Partage annulé", err));
+    } else {
+        // 3. Fallback : Ouvre le client mail (Outlook/Gmail) avec le texte pré-rempli si le partage de fichier direct n'est pas dispo sur le mobile
+        let emailDestinataire = "robert.lavignon@sncf.fr"; // ⚠️ Mettez votre email ici
+        let sujet = encodeURIComponent("Mise à jour stock terrain");
+        let corps = encodeURIComponent("Bonjour,\n\nVoici les dernières modifications de stock réalisées sur le terrain.\n\n(Copiez-collez le contenu de votre fichier si nécessaire ou utilisez la fonction de partage).");
+        
+        // Télécharge aussi le fichier par sécurité pour que le technicien puisse l'attacher facilement
+        let url = URL.createObjectURL(blob);
+        let link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", "stock_global.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        // Ouvre le mail
+        window.location.href = `mailto:${emailDestinataire}?subject=${sujet}&body=${corps}`;
+        alert("Le fichier 'stock_global.csv' a été téléchargé sur votre téléphone et votre application mail va s'ouvrir. Pensez à joindre le fichier au message !");
+    }
+}
