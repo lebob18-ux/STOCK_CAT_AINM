@@ -51,6 +51,11 @@ window.addEventListener('DOMContentLoaded', () => {
         document.getElementById('inputSymbole').value = '';
         document.getElementById('suggestions').innerHTML = '';
     });
+// ➕ AJOUTEZ CE BLOC ICI :
+    const inputQuantite = document.getElementById('stockQuantite');
+    inputQuantite.addEventListener('focus', function() {
+        this.select();
+    });
 });
 
 // --- RECHERCHE PAR PLAN ---
