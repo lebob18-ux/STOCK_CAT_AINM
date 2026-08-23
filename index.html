@@ -13,7 +13,13 @@
         }
         .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-        h2 { font-size: 1.3rem; margin-top: 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+       <h2>
+    <span>Stock Terrain</span>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button id="btnInstaller" onclick="installerApp()" style="display:none; background:#ff6600; width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">📲 Installer l'app</button>
+        <button onclick="partagerStock()" style="width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">Partager le stock</button>
+    </div>
+</h2>
         h3 { font-size: 1.1rem; margin-bottom: 8px; color: #0056b3; }
         
         .search-section { margin-bottom: 15px; padding: 12px; background: #eef2f7; border-radius: 6px; position: relative; }
