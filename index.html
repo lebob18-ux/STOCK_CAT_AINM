@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion de Stock - Terrain</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 15px; background-color: #f4f6f9; color: #333; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .search-section { margin-bottom: 20px; padding: 15px; background: #eef2f7; border-radius: 6px; position: relative; }
+        label { font-weight: bold; display: block; margin-top: 8px; margin-bottom: 3px; font-size: 14px; }
+        input, select { padding: 8px; width: 100%; max-width: 400px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        button { padding: 10px 15px; font-size: 16px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 10px; }
+        button:hover { background: #004085; }
+        .btn-export { background: #28a745; float: right; margin-top: 0; }
+        .btn-export:hover { background: #218838; }
+
+        /* Suggestions Symbole et Listes */
+        #suggestions, #listePlanResultats {
+            position: absolute; background: white; border: 1px solid #ccc; width: 100%; max-width: 400px;
+            max-height: 250px; overflow-y: auto; z-index: 10; border-radius: 0 0 4px 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #listePlanResultats { position: static; max-width: 100%; margin-top: 10px; border: none; box-shadow: none; background: transparent; }
+        .suggestion-item { padding: 8px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #eee; background: white; }
+        .suggestion-item:hover { background: #f0f0f0; }
+        .suggestion-item img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+
+        /* Résultat et Formulaire d'emplacement */
+        #resultat { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
+        .result-flex { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; }
+        .result-flex img { width: 120px; height: 120px; object-fit: cover; border: 1px solid #ccc; border-radius: 6px; }
+
+        /* Popup Modal d'alerte doublon */
+        #modalExistant { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Gestion de Stock Terrain <button class="btn-export" onclick="exporterStockGlobalCSV()">Exporter CSV Global</button></h2>
+    <div style="clear: both;"></div>
+
+    <!-- Recherche par Plan (ID court) -->
+    <div class="search-section">
+        <h3>1. Recherche par Plan</h3>
+        <label>Numéro de Plan (6 chiffres) :</label>
+        <input type="text" id="inputPlan" placeholder="Ex: 123456">
+        <button onclick="rechercherParPlan()">Rechercher</button>
+        <!-- Conteneur pour afficher la liste des miniatures si plusieurs REP -->
+        <div id="listePlanResultats"></div>
+    </div>
+
+    <!-- Recherche par Symbole (ID long) avec autocomplétion -->
+    <div class="search-section" style="position: relative;">
+        <h3>2. Recherche par Symbole</h3>
+        <label>Symbole (Illisible ? Tapez dès le 5e chiffre) :</label>
+        <input type="text" id="inputSymbole" placeholder="Ex: 08804001" autocomplete="off">
+        <div id="suggestions"></div>
+    </div>
+
+    <!-- Zone d'affichage et saisie du lieu de stockage -->
+    <div id="resultat">
+        <h3>Fiche Article & Emplacement</h3>
+        <div class="result-flex">
+            <img id="imgPiece" src="" alt="Miniature">
+            <div>
+                <p><strong>Plan :</strong> <span id="resPlan"></span></p>
+                <p><strong>REP :</strong> <span id="resRep"></span></p>
+                <p><strong>Symbole :</strong> <span id="resSymbole"></span></p>
+                <p><strong>Intitulé :</strong> <span id="resIntitule"></span></p>
+            </div>
+        </div>
+
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+
+        <h4>Définir le Lieu de Stockage</h4>
+        <label>Site :</label>
+        <input type="text" id="stockSite" placeholder="Ex: Dépôt Paris Sud">
+        
+        <label>Bâtiment :</label>
+        <input type="text" id="stockBatiment" placeholder="Ex: Hall B">
+        
+        <label>Rang :</label>
+        <input type="text" id="stockRang" placeholder="Ex: Rayon 4 - Étagère 2">
+        
+        <label>Quantité :</label>
+        <input type="number" id="stockQuantite" value="1" min="1">
+        
+        <button onclick="validerStockage()" style="background: #28a745; width: 100%;">Enregistrer l'emplacement</button>
+    </div>
+</div>
+
+<!-- Popup si la pièce existe déjà -->
+<div id="modalExistant">
+    <div class="modal-content">
+        <h3>Pièce déjà référencée !</h3>
+        <p id="modalTexteInfo"></p>
+        <div class="modal-buttons">
+            <button onclick="fusionnerQuantite()" style="background: #28a745; flex: 1;">Valider (Ajouter)</button>
+            <button onclick="forcerNouvelEmplacement()" style="background: #dc3545; flex: 1;">Suivant (Ailleurs)</button>
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
