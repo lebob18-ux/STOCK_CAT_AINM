@@ -8,7 +8,7 @@ let articleCourant = null;
 window.addEventListener('DOMContentLoaded', () => {
     // 1. Chargement simultané du mapping.json et du stock_global.csv depuis GitHub
     Promise.all([
-        fetch('mapping.json').then(res => res.json()),
+        fetch(GITHUB_DEPOT_URL + 'mapping.json').then(res => res.json()),
         fetch('stock_global.csv').then(res => res.text()).catch(() => "")
     ])
     .then(([catalogueData, csvText]) => {
@@ -113,7 +113,7 @@ function afficherSuggestionsSymbole(prefixe) {
     matches.forEach(article => {
         let div = document.createElement('div');
         div.className = 'suggestion-item';
-        let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
+        let imgUrl = `${GITHUB_DEPOT_URL}${article.symbole}.jpg`;
 
         div.innerHTML = `
             <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
