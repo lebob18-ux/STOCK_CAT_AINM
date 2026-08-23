@@ -6,7 +6,6 @@ let stockGlobal = [];
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    // 1. Chargement du catalogue depuis GitHub et vérification s'il y a des données sauvegardées localement dans le téléphone
     Promise.all([
         fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
@@ -16,11 +15,9 @@ window.addEventListener('DOMContentLoaded', () => {
         console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
         if (stockSauvegarde) {
-            // Si le téléphone a gardé des modifications en mémoire, on les récupère en priorité
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
         } else {
-            // Sinon, on charge le fichier stock_global.csv initial s'il existe
             fetch('stock_global.csv')
                 .then(res => res.text())
                 .then(csvText => {
@@ -34,7 +31,6 @@ window.addEventListener('DOMContentLoaded', () => {
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
 
-    // Gestion du basculement des champs de saisie
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
@@ -147,7 +143,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE & TOUS LES STOCKS ACTUELS ---
+// --- AFFICHAGE DE LA FICHE & SÉLECTION DES EMPLACEMENTS EXISTANTS ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -159,7 +155,7 @@ function afficherFiche(article) {
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
-    // On cherche TOUTES les lignes dans le stock qui correspondent à ce symbole et ce REP
+    // Recherche de TOUS les emplacements de cette pièce (gère parfaitement plusieurs rangs/sites)
     let existants = stockGlobal.filter(item => item.symbole === article.symbole && item.rep === article.rep);
     let divStock = document.getElementById('infoStockActuel');
     
@@ -169,27 +165,32 @@ function afficherFiche(article) {
         divStock.style.border = '1px solid #c3e6cb';
         divStock.style.color = '#155724';
         
-        let htmlStock = `<strong>📦 PIÈCE DÉJÀ EN STOCK (${existants.length} emplacement${existants.length > 1 ? 's' : ''}) :</strong><br><div style="margin-top: 6px; display: flex; flex-direction: column; gap: 4px;">`;
+        let htmlStock = `<strong>📦 EMPLACEMENTS EXISTANTS (${existants.length}) :</strong><br>
+        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez sur un emplacement pour y rajouter de la quantité, ou remplissez les champs en bas pour créer un nouveau lieu :</p>
+        <div style="display: flex; flex-direction: column; gap: 6px;">`;
         
         existants.forEach((ex, idx) => {
-            htmlStock += `<div style="background: rgba(255,255,255,0.7); padding: 4px 8px; border-radius: 4px; font-size: 0.9rem;">
-                📍 <b>#${idx + 1}</b> - Site : <b>${ex.site}</b> | Bât : <b>${ex.batiment}</b> | Rang : <b>${ex.rang}</b> | Qte : <b>${ex.quantite}</b>
-            </div>`;
+            let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
+            htmlStock += `
+                <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+                </div>
+            `;
         });
         htmlStock += `</div>`;
-        
         divStock.innerHTML = htmlStock;
         
-        // Par défaut, on pré-remplit les champs avec le premier emplacement trouvé (ou le dernier)
-        document.getElementById('stockSite').value = existants[0].site;
-        document.getElementById('stockBatiment').value = existants[0].batiment;
-        document.getElementById('stockRang').value = existants[0].rang;
+        // Par défaut, on laisse vide ou pré-rempli pour un nouveau
+        document.getElementById('stockSite').value = "";
+        document.getElementById('stockBatiment').value = "";
+        document.getElementById('stockRang').value = "";
     } else {
         divStock.style.display = 'block';
         divStock.style.backgroundColor = '#fff3cd';
         divStock.style.border = '1px solid #ffeeba';
         divStock.style.color = '#856404';
-        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée.`;
+        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée. Saisissez l'emplacement ci-dessous.`;
         
         document.getElementById('stockSite').value = "";
         document.getElementById('stockBatiment').value = "";
@@ -200,7 +201,17 @@ function afficherFiche(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
-// --- VALIDATION & GESTION DES DOUBLONS PAR POPUP ---
+// Quand on clique sur un emplacement existant dans la liste
+function selectionnerEmplacementExistant(existant) {
+    document.getElementById('stockSite').value = existant.site;
+    document.getElementById('stockBatiment').value = existant.batiment;
+    document.getElementById('stockRang').value = existant.rang;
+    
+    // Optionnel : un petit effet visuel ou focus sur la quantité pour l'incrémenter directement
+    document.getElementById('stockQuantite').focus();
+}
+
+// --- VALIDATION DIRECTE (SANS AUCUN POPUP) ---
 function validerStockage() {
     if (!articleCourant) return;
 
@@ -209,82 +220,43 @@ function validerStockage() {
     let rang = document.getElementById('stockRang').value.trim();
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
 
-    // Seul cas d'alerte : s'il manque des données obligatoires
+    // Seule alerte tolérée : s'il manque des données obligatoires
     if (!site || !batiment || !rang) {
-        alert("Veuillez remplir tous les champs obligatoires (Site, Bâtiment, Rang).");
+        alert("Veuillez remplir tous les champs obligatoires (Site, Bâtiment, Rang) ou cliquer sur un emplacement existant.");
         return;
     }
 
-    let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
+    // On cherche si cet emplacement précis existe déjà pour ce symbole + rep
+    let index = stockGlobal.findIndex(item => 
+        item.symbole === articleCourant.symbole && 
+        item.rep === articleCourant.rep && 
+        item.site.toLowerCase() === site.toLowerCase() && 
+        item.batiment.toLowerCase() === batiment.toLowerCase() && 
+        item.rang.toLowerCase() === rang.toLowerCase()
+    );
 
-    // SI LA PIÈCE EXISTE DÉJÀ AU MÊME ENDROIT : ON AFFICHE LE POPUP
-    if (existant) {
-        document.getElementById('modalTexteInfo').innerHTML = `
-            Cette pièce est déjà enregistrée.<br>
-            <u>Emplacement actuel :</u> ${existant.site} / ${existant.batiment} / ${existant.rang}<br>
-            <u>Quantité actuelle en stock :</u> <b>${existant.quantite}</b>.<br><br>
-            Que voulez-vous faire ?
-        `;
-        document.getElementById('modalExistant').style.display = 'flex';
+    if (index !== -1) {
+        // Si l'emplacement exact existe déjà, on additionne la quantité
+        stockGlobal[index].quantite += qte;
     } else {
-        // SI NOUVELLE PIÈCE : ENREGISTREMENT SILENCIEUX (PAS DE POPUP DE SUCCÈS)
-        sauvegarderLigneStock(site, batiment, rang, qte, false);
-    }
-}
-
-// Actions du Popup de doublon
-function fusionnerQuantite() {
-    let qteAjout = parseInt(document.getElementById('stockQuantite').value) || 0;
-    let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
-    if (existant) {
-        existant.quantite += qteAjout;
-        
-        // 🔒 SAUVEGARDE AUTOMATIQUE DANS LA MÉMOIRE DU TÉLÉPHONE
-        localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-        
-        fermerModalEtReinitialiser();
-    }
-}
-
-function forcerNouvelEmplacement() {
-    let site = document.getElementById('stockSite').value.trim();
-    let batiment = document.getElementById('stockBatiment').value.trim();
-    let rang = document.getElementById('stockRang').value.trim();
-    let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
-    sauvegarderLigneStock(site, batiment, rang, qte, true);
-}
-
-function sauvegarderLigneStock(site, batiment, rang, qte, remplacer) {
-    let index = stockGlobal.findIndex(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
-    
-    let nouvelleEntree = {
-        plan: articleCourant.plan,
-        rep: articleCourant.rep,
-        symbole: articleCourant.symbole,
-        intitule: articleCourant.intitule,
-        site: site,
-        batiment: batiment,
-        rang: rang,
-        quantite: qte
-    };
-
-    if (index !== -1 && remplacer) {
-        stockGlobal[index] = nouvelleEntree;
-    } else if (index === -1) {
-        stockGlobal.push(nouvelleEntree);
+        // Sinon, on ajoute une nouvelle ligne d'emplacement distinct
+        stockGlobal.push({
+            plan: articleCourant.plan,
+            rep: articleCourant.rep,
+            symbole: articleCourant.symbole,
+            intitule: articleCourant.intitule,
+            site: site,
+            batiment: batiment,
+            rang: rang,
+            quantite: qte
+        });
     }
 
     // 🔒 SAUVEGARDE AUTOMATIQUE DANS LA MÉMOIRE DU TÉLÉPHONE
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
-    fermerModalEtReinitialiser();
-}
-
-// Fermeture et réinitialisation propre et silencieuse (pas de message de succès)
-function fermerModalEtReinitialiser() {
-    document.getElementById('modalExistant').style.display = 'none';
+    // Réinitialisation propre et silencieuse sans aucun popup
     document.getElementById('resultat').style.display = 'none';
-    
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
@@ -293,13 +265,14 @@ function fermerModalEtReinitialiser() {
     articleCourant = null;
 }
 
+// Echappement CSV
 function echapperCSV(texte) {
     if (!texte) return '""';
     let textePropre = String(texte).replace(/"/g, '""');
     return `"${textePropre}"`;
 }
 
-// --- EXPORT DU FICHIER CSV (Pour vos mises à jour) ---
+// --- EXPORT DU FICHIER CSV ---
 function exporterStockGlobalCSV() {
     if (stockGlobal.length === 0) {
         alert("Aucune donnée de stock à exporter.");
@@ -320,7 +293,7 @@ function exporterStockGlobalCSV() {
     link.click();
     document.body.removeChild(link);
 
-    // 🧹 Une fois l'export réalisé, on nettoie la sauvegarde temporaire du téléphone
+    // Nettoyage de la sauvegarde locale après export réussi
     localStorage.removeItem('stock_local_sauvegarde');
 }
 
