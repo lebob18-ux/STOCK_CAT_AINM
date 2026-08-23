@@ -1,6 +1,28 @@
 // URL de votre dépôt central de miniatures GitHub
 const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
+let deferredPrompt = null;
 
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('btnInstaller').style.display = 'block';
+});
+
+window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    document.getElementById('btnInstaller').style.display = 'none';
+});
+
+function installerApp() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((result) => {
+        if (result.outcome === 'accepted') {
+            document.getElementById('btnInstaller').style.display = 'none';
+        }
+        deferredPrompt = null;
+    });
+}
 let catalogueGlobal = []; 
 let stockGlobal = [];      
 let articleCourant = null;
