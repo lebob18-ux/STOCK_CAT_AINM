@@ -17,7 +17,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (csvText) {
             stockGlobal = parserCSVEnTableau(csvText);
-            console.log("Stock global GitHub chargé :", stockGlobal.length, "entrées.");
+            console.log("Stock global chargé :", stockGlobal.length, "entrées.");
         }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
@@ -158,7 +158,7 @@ function afficherFiche(article) {
         divStock.innerHTML = `<strong>📦 PIÈCE EN STOCK :</strong><br>
             📍 Site : <b>${existant.site}</b> | Bât : <b>${existant.batiment}</b><br>
             📍 Rang : <b>${existant.rang}</b><br>
-            📊 Quantité : <strong style="font-size:1.1rem;">${existant.quantite}</strong>`;
+            📊 Quantité actuelle : <strong style="font-size:1.1rem;">${existant.quantite}</strong>`;
         
         document.getElementById('stockSite').value = existant.site;
         document.getElementById('stockBatiment').value = existant.batiment;
@@ -179,7 +179,7 @@ function afficherFiche(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
-// --- VALIDATION & DOUBLONS ---
+// --- VALIDATION & GESTION DES DOUBLONS PAR POPUP ---
 function validerStockage() {
     if (!articleCourant) return;
 
@@ -188,32 +188,36 @@ function validerStockage() {
     let rang = document.getElementById('stockRang').value.trim();
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
 
+    // Seul cas d'alerte : s'il manque des données obligatoires
     if (!site || !batiment || !rang) {
-        alert("Veuillez remplir tous les champs de localisation (Site, Bâtiment, Rang).");
+        alert("Veuillez remplir tous les champs obligatoires (Site, Bâtiment, Rang).");
         return;
     }
 
     let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
 
+    // SI LA PIÈCE EXISTE DÉJÀ AU MÊME ENDROIT : ON AFFICHE LE POPUP
     if (existant) {
         document.getElementById('modalTexteInfo').innerHTML = `
-            L'article <b>${articleCourant.symbole}</b> (REP: ${article.rep}) est déjà enregistré à l'emplacement :<br>
-            <u>Site:</u> ${existant.site} / <u>Bât.:</u> ${existant.batiment} / <u>Rang:</u> ${existant.rang}<br>
-            Quantité actuelle en stock : <b>${existant.quantite}</b>.<br><br>
-            Voulez-vous ajouter <b>+${qte}</b> au même endroit ou placer la suite ailleurs ?
+            Cette pièce est déjà enregistrée.<br>
+            <u>Emplacement actuel :</u> ${existant.site} / ${existant.batiment} / ${existant.rang}<br>
+            <u>Quantité actuelle en stock :</u> <b>${existant.quantite}</b>.<br><br>
+            Que voulez-vous faire ?
         `;
         document.getElementById('modalExistant').style.display = 'flex';
     } else {
+        // SI NOUVELLE PIÈCE : ENREGISTREMENT SILENCIEUX (PAS DE POPUP DE SUCCÈS)
         sauvegarderLigneStock(site, batiment, rang, qte, false);
     }
 }
 
+// Actions du Popup de doublon
 function fusionnerQuantite() {
     let qteAjout = parseInt(document.getElementById('stockQuantite').value) || 0;
     let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
     if (existant) {
         existant.quantite += qteAjout;
-        persisterEtFermer("Quantité mise à jour avec succès !");
+        fermerModalEtReinitialiser();
     }
 }
 
@@ -245,10 +249,11 @@ function sauvegarderLigneStock(site, batiment, rang, qte, remplacer) {
         stockGlobal.push(nouvelleEntree);
     }
 
-    persisterEtFermer("Enregistrement effectué !");
+    fermerModalEtReinitialiser();
 }
 
-function persisterEtFermer(message) {
+// Fermeture et réinitialisation propre et silencieuse (pas de message de succès)
+function fermerModalEtReinitialiser() {
     document.getElementById('modalExistant').style.display = 'none';
     document.getElementById('resultat').style.display = 'none';
     
@@ -256,9 +261,8 @@ function persisterEtFermer(message) {
     document.getElementById('inputSymbole').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
     document.getElementById('suggestions').innerHTML = "";
+    document.getElementById('stockQuantite').value = "1";
     articleCourant = null;
-
-    alert(message + "\n\nN'oubliez pas d'exporter et de mettre à jour le fichier stock_global.csv sur GitHub !");
 }
 
 function echapperCSV(texte) {
@@ -267,7 +271,7 @@ function echapperCSV(texte) {
     return `"${textePropre}"`;
 }
 
-// --- EXPORT CSV GLOBAL (Pour mettre à jour GitHub) ---
+// --- EXPORT DU FICHIER CSV (Pour vos mises à jour) ---
 function exporterStockGlobalCSV() {
     if (stockGlobal.length === 0) {
         alert("Aucune donnée de stock à exporter.");
@@ -289,7 +293,7 @@ function exporterStockGlobalCSV() {
     document.body.removeChild(link);
 }
 
-// --- PARSER CSV DEPUIS GITHUB ---
+// --- PARSER CSV ---
 function parserCSVEnTableau(texte) {
     let lignes = texte.split('\n');
     let resultat = [];
@@ -332,47 +336,4 @@ function parserCSVEnTableau(texte) {
         }
     }
     return resultat;
-}
-// --- ENVOI DU STOCK PAR E-MAIL ---
-function envoyerStockParEmail() {
-    if (stockGlobal.length === 0) {
-        alert("Aucune donnée de stock à envoyer.");
-        return;
-    }
-
-    // 1. Génération du contenu CSV
-    let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
-    stockGlobal.forEach(item => {
-        csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
-    });
-
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    
-    // 2. Vérification si le navigateur mobile supporte le partage direct de fichiers (Fichiers joints réels)
-    if (navigator.canShare && navigator.canShare({ files: [new File([blob], "stock_global.csv", { type: "text/csv" })] })) {
-        let fichier = new File([blob], "stock_global.csv", { type: "text/csv" });
-        navigator.share({
-            title: 'Mise à jour Stock Terrain',
-            text: 'Voici le fichier de mise à jour du stock suite au rangement.',
-            files: [fichier]
-        }).catch(err => console.log("Partage annulé", err));
-    } else {
-        // 3. Fallback : Ouvre le client mail (Outlook/Gmail) avec le texte pré-rempli si le partage de fichier direct n'est pas dispo sur le mobile
-        let emailDestinataire = "robert.lavignon@sncf.fr"; // ⚠️ Mettez votre email ici
-        let sujet = encodeURIComponent("Mise à jour stock terrain");
-        let corps = encodeURIComponent("Bonjour,\n\nVoici les dernières modifications de stock réalisées sur le terrain.\n\n(Copiez-collez le contenu de votre fichier si nécessaire ou utilisez la fonction de partage).");
-        
-        // Télécharge aussi le fichier par sécurité pour que le technicien puisse l'attacher facilement
-        let url = URL.createObjectURL(blob);
-        let link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", "stock_global.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-
-        // Ouvre le mail
-        window.location.href = `mailto:${emailDestinataire}?subject=${sujet}&body=${corps}`;
-        alert("Le fichier 'stock_global.csv' a été téléchargé sur votre téléphone et votre application mail va s'ouvrir. Pensez à joindre le fichier au message !");
-    }
 }
