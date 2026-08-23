@@ -1,24 +1,28 @@
 // URL de votre dépôt central de miniatures GitHub
-const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
+const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/VOTRE_COMPTE/depot-miniatures/main/";
 
 let catalogueGlobal = []; 
 let stockGlobal = [];     
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    fetch('mapping.json')
-        .then(response => response.json())
-        .then(data => {
-            catalogueGlobal = data;
-            console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
-        })
-        .catch(err => console.error("Erreur de chargement du mapping.json :", err));
+    // 1. Chargement simultané du mapping.json et du stock_global.csv depuis GitHub
+    Promise.all([
+        fetch('mapping.json').then(res => res.json()),
+        fetch('stock_global.csv').then(res => res.text()).catch(() => "")
+    ])
+    .then(([catalogueData, csvText]) => {
+        catalogueGlobal = catalogueData;
+        console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
-    let localSauvegarde = localStorage.getItem('stock_magasin_local');
-    if (localSauvegarde) {
-        stockGlobal = JSON.parse(localSauvegarde);
-    }
+        if (csvText) {
+            stockGlobal = parserCSVEnTableau(csvText);
+            console.log("Stock global GitHub chargé :", stockGlobal.length, "entrées.");
+        }
+    })
+    .catch(err => console.error("Erreur de chargement des fichiers :", err));
 
+    // Gestion du basculement des champs de saisie
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
@@ -65,17 +69,16 @@ function rechercherParPlan() {
         afficherFiche(correspondances[0]);
     } else {
         let html = `<div style="background: #eef2f7; padding: 12px; border-radius: 6px; margin-top: 10px;">`;
-        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs REP trouvés (Cliquez sur la pièce pour valider) :</p>`;
+        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs REP trouvés (Cliquez sur la pièce) :</p>`;
         html += `<div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">`;
 
         correspondances.forEach(article => {
             let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
             let articleJson = JSON.stringify(article).replace(/"/g, '&quot;');
             
-            // Miniature agrandie à 80px de haut/large
             html += `
-                <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 15px; background: white;">
-                    <img src="${imgUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/80?text=No'">
+                <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 12px; background: white;">
+                    <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
                     <div style="font-size: 14px;">
                         <strong style="font-size: 15px; color: #0056b3;">REP : ${article.rep}</strong> | Symbole : ${article.symbole}<br>
                         <small style="color: #555; display: inline-block; margin-top: 4px;">${article.intitule}</small>
@@ -112,9 +115,8 @@ function afficherSuggestionsSymbole(prefixe) {
         div.className = 'suggestion-item';
         let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
 
-        // Miniature suggestion agrandie à 70px
         div.innerHTML = `
-            <img src="${imgUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/70?text=No'">
+            <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
             <div style="font-size: 14px;">
                 <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan} / REP: ${article.rep})<br>
                 <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
@@ -133,7 +135,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE ---
+// --- AFFICHAGE DE LA FICHE & STOCK ACTUEL ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -143,13 +145,37 @@ function afficherFiche(article) {
 
     let img = document.getElementById('imgPiece');
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
-    img.onerror = () => img.src = 'https://via.placeholder.com/180?text=Introuvable';
+    img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
-    document.getElementById('stockSite').value = "";
-    document.getElementById('stockBatiment').value = "";
-    document.getElementById('stockRang').value = "";
+    let existant = stockGlobal.find(item => item.symbole === article.symbole && item.rep === article.rep);
+    let divStock = document.getElementById('infoStockActuel');
+    
+    if (existant) {
+        divStock.style.display = 'block';
+        divStock.style.backgroundColor = '#d4edda';
+        divStock.style.border = '1px solid #c3e6cb';
+        divStock.style.color = '#155724';
+        divStock.innerHTML = `<strong>📦 PIÈCE EN STOCK :</strong><br>
+            📍 Site : <b>${existant.site}</b> | Bât : <b>${existant.batiment}</b><br>
+            📍 Rang : <b>${existant.rang}</b><br>
+            📊 Quantité : <strong style="font-size:1.1rem;">${existant.quantite}</strong>`;
+        
+        document.getElementById('stockSite').value = existant.site;
+        document.getElementById('stockBatiment').value = existant.batiment;
+        document.getElementById('stockRang').value = existant.rang;
+    } else {
+        divStock.style.display = 'block';
+        divStock.style.backgroundColor = '#fff3cd';
+        divStock.style.border = '1px solid #ffeeba';
+        divStock.style.color = '#856404';
+        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée.`;
+        
+        document.getElementById('stockSite').value = "";
+        document.getElementById('stockBatiment').value = "";
+        document.getElementById('stockRang').value = "";
+    }
+
     document.getElementById('stockQuantite').value = "1";
-
     document.getElementById('resultat').style.display = 'block';
 }
 
@@ -223,7 +249,6 @@ function sauvegarderLigneStock(site, batiment, rang, qte, remplacer) {
 }
 
 function persisterEtFermer(message) {
-    localStorage.setItem('stock_magasin_local', JSON.stringify(stockGlobal));
     document.getElementById('modalExistant').style.display = 'none';
     document.getElementById('resultat').style.display = 'none';
     
@@ -233,7 +258,7 @@ function persisterEtFermer(message) {
     document.getElementById('suggestions').innerHTML = "";
     articleCourant = null;
 
-    alert(message);
+    alert(message + "\n\nN'oubliez pas d'exporter et de mettre à jour le fichier stock_global.csv sur GitHub !");
 }
 
 function echapperCSV(texte) {
@@ -242,7 +267,7 @@ function echapperCSV(texte) {
     return `"${textePropre}"`;
 }
 
-// --- EXPORT CSV GLOBAL ---
+// --- EXPORT CSV GLOBAL (Pour mettre à jour GitHub) ---
 function exporterStockGlobalCSV() {
     if (stockGlobal.length === 0) {
         alert("Aucune donnée de stock à exporter.");
@@ -262,4 +287,49 @@ function exporterStockGlobalCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+
+// --- PARSER CSV DEPUIS GITHUB ---
+function parserCSVEnTableau(texte) {
+    let lignes = texte.split('\n');
+    let resultat = [];
+    
+    for (let i = 1; i < lignes.length; i++) {
+        let ligne = lignes[i].trim();
+        if (!ligne) continue;
+        
+        let donnees = [];
+        let entreGuillemets = false;
+        let valeurCourante = "";
+        
+        for (let j = 0; j < ligne.length; j++) {
+            let char = ligne[j];
+            if (char === '"' && ligne[j+1] === '"') { 
+                valeurCourante += '"'; 
+                j++; 
+            } else if (char === '"') { 
+                entreGuillemets = !entreGuillemets; 
+            } else if (char === ',' && !entreGuillemets) { 
+                donnees.push(valeurCourante); 
+                valeurCourante = ""; 
+            } else { 
+                valeurCourante += char; 
+            }
+        }
+        donnees.push(valeurCourante);
+        
+        if (donnees.length >= 8) {
+            resultat.push({
+                plan: donnees[0],
+                rep: donnees[1],
+                symbole: donnees[2],
+                intitule: donnees[3],
+                site: donnees[4],
+                batiment: donnees[5],
+                rang: donnees[6],
+                quantite: parseInt(donnees[7]) || 0
+            });
+        }
+    }
+    return resultat;
 }
