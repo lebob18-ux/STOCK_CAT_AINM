@@ -1,12 +1,11 @@
-// URL de votre dépôt central de miniatures GitHub (les images sont nommées par leur symbole ex: 08804001.jpg)
+// URL de votre dépôt central de miniatures GitHub
 const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 
-let catalogueGlobal = []; // Contient le mapping.json
-let stockGlobal = [];     // Contient l'état du stock (fusion local + export)
+let catalogueGlobal = []; 
+let stockGlobal = [];     
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    // 1. Charger le fichier JSON unique de correspondance
     fetch('mapping.json')
         .then(response => response.json())
         .then(data => {
@@ -15,25 +14,34 @@ window.addEventListener('DOMContentLoaded', () => {
         })
         .catch(err => console.error("Erreur de chargement du mapping.json :", err));
 
-    // 2. Charger le stock enregistré localement sur l'appareil
     let localSauvegarde = localStorage.getItem('stock_magasin_local');
     if (localSauvegarde) {
         stockGlobal = JSON.parse(localSauvegarde);
     }
 
-    // 3. Écouteur pour la recherche dynamique par Symbole (dès 5 caractères)
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
+        if (valeur.length > 0) {
+            document.getElementById('inputPlan').value = '';
+            document.getElementById('listePlanResultats').innerHTML = '';
+        }
+
         if (valeur.length >= 5) {
             afficherSuggestionsSymbole(valeur);
         } else {
             document.getElementById('suggestions').innerHTML = '';
         }
     });
+
+    const inputPlan = document.getElementById('inputPlan');
+    inputPlan.addEventListener('input', () => {
+        document.getElementById('inputSymbole').value = '';
+        document.getElementById('suggestions').innerHTML = '';
+    });
 });
 
-// --- RECHERCHE PAR PLAN (Gère les REP multiples) ---
+// --- RECHERCHE PAR PLAN ---
 function rechercherParPlan() {
     let saisie = document.getElementById('inputPlan').value.trim();
     if (!saisie) return;
@@ -41,7 +49,9 @@ function rechercherParPlan() {
     let planFormate = saisie.padStart(6, '0');
     document.getElementById('inputPlan').value = planFormate;
 
-    // Recherche tous les articles partageant ce Plan
+    document.getElementById('inputSymbole').value = '';
+    document.getElementById('suggestions').innerHTML = '';
+
     let correspondances = catalogueGlobal.filter(item => item.plan === planFormate);
     let conteneurListe = document.getElementById('listePlanResultats');
     conteneurListe.innerHTML = '';
@@ -52,25 +62,23 @@ function rechercherParPlan() {
     }
 
     if (correspondances.length === 1) {
-        // Un seul résultat direct
         afficherFiche(correspondances[0]);
     } else {
-        // Plusieurs REP pour ce plan : affichage de la liste des miniatures
-        let html = `<div style="background: #eef2f7; padding: 10px; border-radius: 6px; margin-top: 10px;">`;
-        html += `<p style="margin: 0 0 8px 0; font-weight: bold; font-size: 13px;">Plusieurs REP trouvés (Cliquez sur la miniature pour valider) :</p>`;
-        html += `<div style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;">`;
+        let html = `<div style="background: #eef2f7; padding: 12px; border-radius: 6px; margin-top: 10px;">`;
+        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs REP trouvés (Cliquez sur la pièce pour valider) :</p>`;
+        html += `<div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">`;
 
         correspondances.forEach(article => {
             let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
-            // Échappement propre pour passer l'objet dans la fonction au clic
             let articleJson = JSON.stringify(article).replace(/"/g, '&quot;');
             
+            // Miniature agrandie à 80px de haut/large
             html += `
-                <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 6px; border-radius: 4px; display: flex; align-items: center; gap: 10px; background: white;">
-                    <img src="${imgUrl}" style="width: 45px; height: 45px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/45?text=No'">
-                    <div style="font-size: 13px;">
-                        <strong>REP : ${article.rep}</strong> | Symbole : ${article.symbole}<br>
-                        <small style="color: #666;">${article.intitule}</small>
+                <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 15px; background: white;">
+                    <img src="${imgUrl}" style="width: 80px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/80?text=No'">
+                    <div style="font-size: 14px;">
+                        <strong style="font-size: 15px; color: #0056b3;">REP : ${article.rep}</strong> | Symbole : ${article.symbole}<br>
+                        <small style="color: #555; display: inline-block; margin-top: 4px;">${article.intitule}</small>
                     </div>
                 </div>
             `;
@@ -80,14 +88,14 @@ function rechercherParPlan() {
     }
 }
 
-// Sélection d'un article depuis la liste des REP du Plan
 function selectionnerArticlePlan(article) {
-    document.getElementById('listePlanResultats').innerHTML = ''; // Efface la liste
+    document.getElementById('listePlanResultats').innerHTML = ''; 
     document.getElementById('inputPlan').value = article.plan;
+    document.getElementById('inputSymbole').value = '';
     afficherFiche(article);
 }
 
-// --- RECHERCHE PAR SYMBOLE (Autocomplétion dès 5 caractères) ---
+// --- RECHERCHE PAR SYMBOLE ---
 function afficherSuggestionsSymbole(prefixe) {
     let container = document.getElementById('suggestions');
     container.innerHTML = '';
@@ -95,7 +103,7 @@ function afficherSuggestionsSymbole(prefixe) {
     let matches = catalogueGlobal.filter(item => item.symbole.startsWith(prefixe));
 
     if (matches.length === 0) {
-        container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px;">Aucune correspondance</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucune correspondance</div>';
         return;
     }
 
@@ -104,16 +112,19 @@ function afficherSuggestionsSymbole(prefixe) {
         div.className = 'suggestion-item';
         let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
 
+        // Miniature suggestion agrandie à 70px
         div.innerHTML = `
-            <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/40?text=No'">
-            <div style="font-size: 13px;">
-                <strong>Symb: ${article.symbole}</strong> (Plan: ${article.plan} / REP: ${article.rep})<br>
-                <small style="color: #666;">${article.intitule}</small>
+            <img src="${imgUrl}" style="width: 70px; height: 70px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/70?text=No'">
+            <div style="font-size: 14px;">
+                <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan} / REP: ${article.rep})<br>
+                <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
             </div>
         `;
         
         div.addEventListener('click', () => {
             document.getElementById('inputSymbole').value = article.symbole;
+            document.getElementById('inputPlan').value = '';
+            document.getElementById('listePlanResultats').innerHTML = '';
             container.innerHTML = '';
             afficherFiche(article);
         });
@@ -122,7 +133,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE ARTICLE ---
+// --- AFFICHAGE DE LA FICHE ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -132,9 +143,8 @@ function afficherFiche(article) {
 
     let img = document.getElementById('imgPiece');
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
-    img.onerror = () => img.src = 'https://via.placeholder.com/120?text=Introuvable';
+    img.onerror = () => img.src = 'https://via.placeholder.com/180?text=Introuvable';
 
-    // Vider les champs d'emplacement
     document.getElementById('stockSite').value = "";
     document.getElementById('stockBatiment').value = "";
     document.getElementById('stockRang').value = "";
@@ -143,7 +153,7 @@ function afficherFiche(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
-// --- VALIDATION DE L'EMPLACEMENT & GESTION DES DOUBLONS ---
+// --- VALIDATION & DOUBLONS ---
 function validerStockage() {
     if (!articleCourant) return;
 
@@ -157,7 +167,6 @@ function validerStockage() {
         return;
     }
 
-    // Vérifie si la pièce existe déjà (identifiée par son couple Symbole + REP)
     let existant = stockGlobal.find(item => item.symbole === articleCourant.symbole && item.rep === articleCourant.rep);
 
     if (existant) {
@@ -217,19 +226,23 @@ function persisterEtFermer(message) {
     localStorage.setItem('stock_magasin_local', JSON.stringify(stockGlobal));
     document.getElementById('modalExistant').style.display = 'none';
     document.getElementById('resultat').style.display = 'none';
+    
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
+    document.getElementById('listePlanResultats').innerHTML = "";
+    document.getElementById('suggestions').innerHTML = "";
+    articleCourant = null;
+
     alert(message);
 }
 
-// Fonction utilitaire pour protéger les chaînes dans le CSV généré
 function echapperCSV(texte) {
     if (!texte) return '""';
     let textePropre = String(texte).replace(/"/g, '""');
     return `"${textePropre}"`;
 }
 
-// --- EXPORT CSV GLOBAL (Pour mettre à jour GitHub pour l'équipe) ---
+// --- EXPORT CSV GLOBAL ---
 function exporterStockGlobalCSV() {
     if (stockGlobal.length === 0) {
         alert("Aucune donnée de stock à exporter.");
