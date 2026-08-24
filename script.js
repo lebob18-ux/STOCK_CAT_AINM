@@ -23,8 +23,10 @@ function installerApp() {
         deferredPrompt = null;
     });
 }
+
 let catalogueGlobal = []; 
 let stockGlobal = [];      
+let pelicansData = [];     // Stocke les données de pelicans.xlsx
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -35,14 +37,17 @@ window.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.log('Erreur Service Worker :', err));
     }
 
+    // Chargement en parallèle du mapping, du stock local/CSV et de la base Pelican Excel
     Promise.all([
         fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
-        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
+        Promise.resolve(localStorage.getItem('stock_local_sauvegarde')),
+        fetch('./pelicans.xlsx').then(res => res.arrayBuffer()).catch(() => null)
     ])
-    .then(([catalogueData, stockSauvegarde]) => {
+    .then(([catalogueData, stockSauvegarde, pelicanBuffer]) => {
         catalogueGlobal = catalogueData;
         console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
+        // Gestion du stock
         if (stockSauvegarde) {
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
@@ -57,15 +62,42 @@ window.addEventListener('DOMContentLoaded', () => {
                 })
                 .catch(() => console.log("Aucun fichier CSV de base, démarrage à vide."));
         }
+
+        // Traitement de la base Pelican Excel
+        if (pelicanBuffer) {
+            let data = new Uint8Array(pelicanBuffer);
+            let workbook = XLSX.read(data, {type: 'array'});
+            let firstSheetName = workbook.SheetNames[0];
+            pelicansData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
+            console.log("Base Pelican Excel chargée :", pelicansData.length, "lignes.");
+        } else {
+            console.log("Fichier pelicans.xlsx introuvable à la racine.");
+        }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
 
+    // --- ÉCOUTEURS DE SAISIE ---
+    
+    // 1. Recherche Pelican / Plan-repère (Dès le 3e caractère)
+    const inputPelican = document.getElementById('inputPelican');
+    inputPelican.addEventListener('input', (e) => {
+        let valeur = e.target.value.trim();
+        if (valeur.length >= 3) {
+            afficherSuggestionsPelican(valeur);
+        } else {
+            document.getElementById('suggestionsPelican').innerHTML = '';
+        }
+    });
+
+    // 2. Recherche par Symbole (Dès le 5e chiffre)
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
         if (valeur.length > 0) {
             document.getElementById('inputPlan').value = '';
             document.getElementById('listePlanResultats').innerHTML = '';
+            document.getElementById('inputPelican').value = '';
+            document.getElementById('fichePelicanDetail').style.display = 'none';
         }
 
         if (valeur.length >= 5) {
@@ -75,18 +107,118 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // 3. Recherche par Plan
     const inputPlan = document.getElementById('inputPlan');
     inputPlan.addEventListener('input', () => {
         document.getElementById('inputSymbole').value = '';
         document.getElementById('suggestions').innerHTML = '';
+        document.getElementById('inputPelican').value = '';
+        document.getElementById('fichePelicanDetail').style.display = 'none';
     });
 
-    // Sélection automatique du texte de la quantité au clic pour taper directement
+    // Sélection automatique de la quantité au clic
     const inputQuantite = document.getElementById('stockQuantite');
     inputQuantite.addEventListener('focus', function() {
         this.select();
     });
 });
+
+// --- GESTION DE LA RECHERCHE PELICAN / PLAN-REPÈRE ---
+function afficherSuggestionsPelican(texte) {
+    let container = document.getElementById('suggestionsPelican');
+    container.innerHTML = '';
+    
+    let recherche = texte.toLowerCase();
+    
+    // Colonnes Excel attendues : Pelican, PLANR-rep, Intitulé Pelican
+    let matches = pelicansData.filter(row => {
+        let pelican = String(row["Pelican"] || "").toLowerCase();
+        let planRep = String(row["PLANR-rep"] || "").toLowerCase();
+        return pelican.includes(recherche) || planRep.includes(recherche);
+    });
+
+    // Dédoublonner par code Pelican
+    let pelicansUniques = [...new Map(matches.map(item => [item["Pelican"], item])).values()];
+
+    if (pelicansUniques.length === 0) {
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican ou plan-repère trouvé</div>';
+        return;
+    }
+
+    pelicansUniques.forEach(item => {
+        let div = document.createElement('div');
+        div.className = 'suggestion-item';
+        
+        div.innerHTML = `
+            <div style="font-size: 14px; width: 100%;">
+                <strong style="color: #0056b3;">Pelican : ${item["Pelican"]}</strong> (Plan-Rep: ${item["PLANR-rep"]})<br>
+                <small style="color: #555;">${item["Intitulé Pelican"] || ''}</small>
+            </div>
+        `;
+        
+        div.addEventListener('click', () => {
+            document.getElementById('inputPelican').value = item["Pelican"];
+            document.getElementById('inputPlan').value = '';
+            document.getElementById('inputSymbole').value = '';
+            document.getElementById('suggestions').innerHTML = '';
+            container.innerHTML = '';
+            afficherDetailsPelican(item["Pelican"]);
+        });
+        
+        container.appendChild(div);
+    });
+}
+
+// Affichage du kit Pelican complet et vérification des stocks composants (Sy)
+function afficherDetailsPelican(codePelican) {
+    let composants = pelicansData.filter(row => row["Pelican"] === codePelican);
+    if (composants.length === 0) return;
+
+    let infoPelican = composants[0];
+    let divDetail = document.getElementById('fichePelicanDetail');
+    divDetail.style.display = 'block';
+    
+    // Fermer les autres fiches si ouvertes
+    document.getElementById('resultat').style.display = 'none';
+
+    let html = `
+        <h3 style="color: #0056b3; margin-top:0;">Kit / Montage : ${infoPelican["Pelican"]}</h3>
+        <p><strong>Plan-Repère :</strong> ${infoPelican["PLANR-rep"]}</p>
+        <p><strong>Intitulé :</strong> ${infoPelican["Intitulé Pelican"]}</p>
+        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ddd;">
+        <h4 style="margin: 8px 0;">Composition (Symboles requis) :</h4>
+        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
+    `;
+
+    composants.forEach(comp => {
+        let sy = String(comp["Symbole"] || "").trim();
+        let qteRequise = parseInt(comp["Quantité"]) || 1;
+        let libSy = comp["Intitulé Symbole"] || "";
+        let imgUrl = `${GITHUB_MINIATURES_URL}${sy}.jpg`;
+
+        // Calculer le stock total disponible dans l'app pour ce symbole (Sy)
+        let stockTrouve = stockGlobal
+            .filter(s => s.symbole === sy)
+            .reduce((total, s) => total + s.quantite, 0);
+
+        let statusColor = stockTrouve >= qteRequise ? "#d4edda" : "#f8d7da";
+        let statusBorder = stockTrouve >= qteRequise ? "#c3e6cb" : "#f5c6cb";
+        let statusText = stockTrouve >= qteRequise ? `✅ En stock (${stockTrouve}/${qteRequise})` : `⚠️ Manquant (${stockTrouve}/${qteRequise}) <br><small style="color:a71d2a">Alerte : Quantité insuffisante sur le terrain</small>`;
+
+        html += `
+            <div style="display: flex; align-items: center; gap: 10px; background: ${statusColor}; border: 1px solid ${statusBorder}; padding: 8px; border-radius: 6px;">
+                <img src="${imgUrl}" style="width: 70px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;" onerror="this.src='https://via.placeholder.com/70x50?text=No'">
+                <div style="font-size: 13px; flex: 1;">
+                    <strong>Sy: ${sy}</strong> - ${libSy}<br>
+                    <span>Requis : <b>${qteRequise}</b></span> | <span style="font-weight: bold;">${statusText}</span>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div>`;
+    divDetail.innerHTML = html;
+}
 
 // --- RECHERCHE PAR PLAN ---
 function rechercherParPlan() {
@@ -98,6 +230,8 @@ function rechercherParPlan() {
 
     document.getElementById('inputSymbole').value = '';
     document.getElementById('suggestions').innerHTML = '';
+    document.getElementById('inputPelican').value = '';
+    document.getElementById('fichePelicanDetail').style.display = 'none';
 
     let correspondances = catalogueGlobal.filter(item => item.plan === planFormate);
     let conteneurListe = document.getElementById('listePlanResultats');
@@ -170,6 +304,8 @@ function afficherSuggestionsSymbole(prefixe) {
             document.getElementById('inputSymbole').value = article.symbole;
             document.getElementById('inputPlan').value = '';
             document.getElementById('listePlanResultats').innerHTML = '';
+            document.getElementById('inputPelican').value = '';
+            document.getElementById('fichePelicanDetail').style.display = 'none';
             container.innerHTML = '';
             afficherFiche(article);
         });
@@ -214,22 +350,17 @@ function afficherFiche(article) {
         });
         htmlStock += `</div>`;
         divStock.innerHTML = htmlStock;
-        
-        document.getElementById('stockSite').value = "";
-        document.getElementById('stockBatiment').value = "";
-        document.getElementById('stockRang').value = "";
     } else {
         divStock.style.display = 'block';
         divStock.style.backgroundColor = '#fff3cd';
         divStock.style.border = '1px solid #ffeeba';
         divStock.style.color = '#856404';
         divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée. Saisissez l'emplacement ci-dessous.`;
-        
-        document.getElementById('stockSite').value = "";
-        document.getElementById('stockBatiment').value = "";
-        document.getElementById('stockRang').value = "";
     }
 
+    document.getElementById('stockSite').value = "";
+    document.getElementById('stockBatiment').value = "";
+    document.getElementById('stockRang').value = "";
     document.getElementById('stockQuantite').value = "1";
     document.getElementById('resultat').style.display = 'block';
 }
@@ -283,8 +414,11 @@ function validerStockage() {
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
+    document.getElementById('inputPelican').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
     document.getElementById('suggestions').innerHTML = "";
+    document.getElementById('suggestionsPelican').innerHTML = "";
+    document.getElementById('fichePelicanDetail').style.display = 'none';
     document.getElementById('stockQuantite').value = "1";
     articleCourant = null;
 }
