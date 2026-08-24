@@ -26,7 +26,7 @@ function installerApp() {
 
 let catalogueGlobal = []; 
 let stockGlobal = [];      
-let pelicansData = [];     // Stocke les données de pelicans.xlsx
+let pelicansData = [];     // Données lues depuis PELICAN.xlsx
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -37,11 +37,11 @@ window.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.log('Erreur Service Worker :', err));
     }
 
-    // Chargement en parallèle du mapping, du stock local/CSV et de la base Pelican Excel
+    // Chargement du mapping, du stock (local ou fichier excel) et de PELICAN.xlsx
     Promise.all([
         fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde')),
-        fetch('./pelicans.xlsx').then(res => res.arrayBuffer()).catch(() => null)
+        fetch('./PELICAN.xlsx').then(res => res.arrayBuffer()).catch(() => null)
     ])
     .then(([catalogueData, stockSauvegarde, pelicanBuffer]) => {
         catalogueGlobal = catalogueData;
@@ -52,26 +52,26 @@ window.addEventListener('DOMContentLoaded', () => {
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
         } else {
-            fetch('stock_global.csv')
-                .then(res => res.text())
-                .then(csvText => {
-                    if (csvText) {
-                        stockGlobal = parserCSVEnTableau(csvText);
-                        console.log("Stock global initial chargé :", stockGlobal.length, "entrées.");
-                    }
+            // Optionnel : si tu as un fichier de stock excel (ex: STOCK.xlsx)
+            fetch('./STOCK.xlsx')
+                .then(res => res.arrayBuffer())
+                .then(buffer => {
+                    let wb = XLSX.read(new Uint8Array(buffer), {type: 'array'});
+                    stockGlobal = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+                    console.log("Stock initial chargé depuis STOCK.xlsx :", stockGlobal.length);
                 })
-                .catch(() => console.log("Aucun fichier CSV de base, démarrage à vide."));
+                .catch(() => console.log("Aucun fichier STOCK.xlsx, démarrage à vide."));
         }
 
-        // Traitement de la base Pelican Excel
+        // Traitement de la base PELICAN.xlsx
         if (pelicanBuffer) {
             let data = new Uint8Array(pelicanBuffer);
             let workbook = XLSX.read(data, {type: 'array'});
             let firstSheetName = workbook.SheetNames[0];
             pelicansData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
-            console.log("Base Pelican Excel chargée :", pelicansData.length, "lignes.");
+            console.log("Base PELICAN.xlsx chargée :", pelicansData.length, "lignes.");
         } else {
-            console.log("Fichier pelicans.xlsx introuvable à la racine.");
+            console.log("Fichier PELICAN.xlsx introuvable à la racine.");
         }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
@@ -130,14 +130,12 @@ function afficherSuggestionsPelican(texte) {
     
     let recherche = texte.toLowerCase();
     
-    // Colonnes Excel attendues : Pelican, PLANR-rep, Intitulé Pelican
     let matches = pelicansData.filter(row => {
         let pelican = String(row["Pelican"] || "").toLowerCase();
         let planRep = String(row["PLANR-rep"] || "").toLowerCase();
         return pelican.includes(recherche) || planRep.includes(recherche);
     });
 
-    // Dédoublonner par code Pelican
     let pelicansUniques = [...new Map(matches.map(item => [item["Pelican"], item])).values()];
 
     if (pelicansUniques.length === 0) {
@@ -169,7 +167,7 @@ function afficherSuggestionsPelican(texte) {
     });
 }
 
-// Affichage du kit Pelican complet et vérification des stocks composants (Sy)
+// Affichage du kit Pelican complet et vérification des stocks composants
 function afficherDetailsPelican(codePelican) {
     let composants = pelicansData.filter(row => row["Pelican"] === codePelican);
     if (composants.length === 0) return;
@@ -178,7 +176,6 @@ function afficherDetailsPelican(codePelican) {
     let divDetail = document.getElementById('fichePelicanDetail');
     divDetail.style.display = 'block';
     
-    // Fermer les autres fiches si ouvertes
     document.getElementById('resultat').style.display = 'none';
 
     let html = `
@@ -196,14 +193,13 @@ function afficherDetailsPelican(codePelican) {
         let libSy = comp["Intitulé Symbole"] || "";
         let imgUrl = `${GITHUB_MINIATURES_URL}${sy}.jpg`;
 
-        // Calculer le stock total disponible dans l'app pour ce symbole (Sy)
         let stockTrouve = stockGlobal
-            .filter(s => s.symbole === sy)
-            .reduce((total, s) => total + s.quantite, 0);
+            .filter(s => String(s.symbole || s.Symbole || "").trim() === sy)
+            .reduce((total, s) => total + (parseInt(s.quantite || s.Quantité) || 0), 0);
 
         let statusColor = stockTrouve >= qteRequise ? "#d4edda" : "#f8d7da";
         let statusBorder = stockTrouve >= qteRequise ? "#c3e6cb" : "#f5c6cb";
-        let statusText = stockTrouve >= qteRequise ? `✅ En stock (${stockTrouve}/${qteRequise})` : `⚠️ Manquant (${stockTrouve}/${qteRequise}) <br><small style="color:a71d2a">Alerte : Quantité insuffisante sur le terrain</small>`;
+        let statusText = stockTrouve >= qteRequise ? `✅ En stock (${stockTrouve}/${qteRequise})` : `⚠️ Manquant (${stockTrouve}/${qteRequise})`;
 
         html += `
             <div style="display: flex; align-items: center; gap: 10px; background: ${statusColor}; border: 1px solid ${statusBorder}; padding: 8px; border-radius: 6px;">
@@ -314,7 +310,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE & SÉLECTION DES EMPLACEMENTS EXISTANTS ---
+// --- AFFICHAGE DE LA FICHE & SÉLECTION DES EMPLACEMENTS ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -326,7 +322,10 @@ function afficherFiche(article) {
     img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
-    let existants = stockGlobal.filter(item => item.symbole === article.symbole && item.rep === article.rep);
+    let existants = stockGlobal.filter(item => 
+        String(item.symbole || item.Symbole || "").trim() === article.symbole && 
+        String(item.rep || item.Rep || "").trim() === article.rep
+    );
     let divStock = document.getElementById('infoStockActuel');
     
     if (existants.length > 0) {
@@ -336,15 +335,20 @@ function afficherFiche(article) {
         divStock.style.color = '#155724';
         
         let htmlStock = `<strong>📦 EMPLACEMENTS EXISTANTS (${existants.length}) :</strong><br>
-        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez sur un emplacement pour y rajouter de la quantité, ou remplissez les champs en bas pour créer un nouveau lieu :</p>
+        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour rajouter de la quantité, ou remplissez les champs en bas :</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
         
         existants.forEach((ex) => {
             let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
+            let siteVal = ex.site || ex.Site || "";
+            let batVal = ex.batiment || ex.Batiment || "";
+            let rangVal = ex.rang || ex.Rang || "";
+            let qteVal = ex.quantite || ex.Quantité || 0;
+
             htmlStock += `
                 <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
-                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+                    <div>📍 Site: <b>${siteVal}</b> | Bât: <b>${batVal}</b> | Rang: <b>${rangVal}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${qteVal}</div>
                 </div>
             `;
         });
@@ -366,9 +370,9 @@ function afficherFiche(article) {
 }
 
 function selectionnerEmplacementExistant(existant) {
-    document.getElementById('stockSite').value = existant.site;
-    document.getElementById('stockBatiment').value = existant.batiment;
-    document.getElementById('stockRang').value = existant.rang;
+    document.getElementById('stockSite').value = existant.site || existant.Site || "";
+    document.getElementById('stockBatiment').value = existant.batiment || existant.Batiment || "";
+    document.getElementById('stockRang').value = existant.rang || existant.Rang || "";
     document.getElementById('stockQuantite').focus();
 }
 
@@ -386,16 +390,23 @@ function validerStockage() {
         return;
     }
 
-    let index = stockGlobal.findIndex(item => 
-        item.symbole === articleCourant.symbole && 
-        item.rep === articleCourant.rep && 
-        item.site.toLowerCase() === site.toLowerCase() && 
-        item.batiment.toLowerCase() === batiment.toLowerCase() && 
-        item.rang.toLowerCase() === rang.toLowerCase()
-    );
+    let index = stockGlobal.findIndex(item => {
+        let sSym = String(item.symbole || item.Symbole || "").trim();
+        let sRep = String(item.rep || item.Rep || "").trim();
+        let sSite = String(item.site || item.Site || "").trim();
+        let sBat = String(item.batiment || item.Batiment || "").trim();
+        let sRang = String(item.rang || item.Rang || "").trim();
+
+        return sSym === articleCourant.symbole && 
+               sRep === articleCourant.rep && 
+               sSite.toLowerCase() === site.toLowerCase() && 
+               sBat.toLowerCase() === batiment.toLowerCase() && 
+               sRang.toLowerCase() === rang.toLowerCase();
+    });
 
     if (index !== -1) {
-        stockGlobal[index].quantite += qte;
+        let currentQte = parseInt(stockGlobal[index].quantite || stockGlobal[index].Quantité) || 0;
+        stockGlobal[index].quantite = currentQte + qte;
     } else {
         stockGlobal.push({
             plan: articleCourant.plan,
@@ -421,113 +432,4 @@ function validerStockage() {
     document.getElementById('fichePelicanDetail').style.display = 'none';
     document.getElementById('stockQuantite').value = "1";
     articleCourant = null;
-}
-
-function echapperCSV(texte) {
-    if (!texte) return '""';
-    let textePropre = String(texte).replace(/"/g, '""');
-    return `"${textePropre}"`;
-}
-
-function exporterStockGlobalCSV() {
-    if (stockGlobal.length === 0) {
-        alert("Aucune donnée de stock à exporter.");
-        return;
-    }
-
-    let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
-    stockGlobal.forEach(item => {
-        csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
-    });
-
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let url = URL.createObjectURL(blob);
-    let link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", "stock_global.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    localStorage.removeItem('stock_local_sauvegarde');
-}
-
-function parserCSVEnTableau(texte) {
-    let lignes = texte.split('\n');
-    let resultat = [];
-    
-    for (let i = 1; i < lignes.length; i++) {
-        let ligne = lignes[i].trim();
-        if (!ligne) continue;
-        
-        let donnees = [];
-        let entreGuillemets = false;
-        let valeurCourante = "";
-        
-        for (let j = 0; j < ligne.length; j++) {
-            let char = ligne[j];
-            if (char === '"' && ligne[j+1] === '"') { 
-                valeurCourante += '"'; 
-                j++; 
-            } else if (char === '"') { 
-                entreGuillemets = !entreGuillemets; 
-            } else if (char === ',' && !entreGuillemets) { 
-                donnees.push(valeurCourante); 
-                valeurCourante = ""; 
-            } else { 
-                valeurCourante += char; 
-            }
-        }
-        donnees.push(valeurCourante);
-        
-        if (donnees.length >= 8) {
-            resultat.push({
-                plan: donnees[0],
-                rep: donnees[1],
-                symbole: donnees[2],
-                intitule: donnees[3],
-                site: donnees[4],
-                batiment: donnees[5],
-                rang: donnees[6],
-                quantite: parseInt(donnees[7]) || 0
-            });
-        }
-    }
-    return resultat;
-}
-
-// --- PARTAGE DU STOCK (API NATIVE DU TÉLÉPHONE) ---
-async function partagerStock() {
-    if (stockGlobal.length === 0) {
-        alert("Aucune donnée de stock à partager.");
-        return;
-    }
-
-    let csvContent = "plan,rep,symbole,intitule,site,batiment,rang,quantite\n";
-    stockGlobal.forEach(item => {
-        csvContent += `${item.plan},${item.rep},${item.symbole},${echapperCSV(item.intitule)},${echapperCSV(item.site)},${echapperCSV(item.batiment)},${echapperCSV(item.rang)},${item.quantite}\n`;
-    });
-
-    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    let fichier = new File([blob], "stock_global.csv", { type: 'text/csv' });
-
-    if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-        try {
-            await navigator.share({
-                title: 'Mise à jour stock terrain caténaire',
-                text: 'Voici le fichier de mise à jour du stock terrain.',
-                files: [fichier]
-            });
-            
-            localStorage.removeItem('stock_local_sauvegarde');
-            console.log("Partage réussi et mémoire nettoyée.");
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error("Erreur lors du partage :", error);
-            }
-        }
-    } else {
-        alert("Votre appareil ne prend pas en charge le partage direct de fichiers. Le fichier va être téléchargé à la place.");
-        exporterStockGlobalCSV();
-    }
 }
