@@ -13,13 +13,10 @@
         }
         .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         
-       <h2>
-    <span>Stock Terrain</span>
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-        <button id="btnInstaller" onclick="installerApp()" style="display:none; background:#ff6600; width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">📲 Installer l'app</button>
-        <button onclick="partagerStock()" style="width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">Partager le stock</button>
-    </div>
-</h2>
+        h2 {
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 0; font-size: 1.3rem;
+        }
+        h2 span { color: #0056b3; }
         h3 { font-size: 1.1rem; margin-bottom: 8px; color: #0056b3; }
         
         .search-section { margin-bottom: 15px; padding: 12px; background: #eef2f7; border-radius: 6px; position: relative; }
@@ -32,53 +29,56 @@
             border-radius: 6px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold; 
         }
         button:active { background: #004085; }
-        .btn-export { background: #28a745; width: auto; padding: 8px 12px; font-size: 0.9rem; margin-top: 0; }
 
         /* Suggestions et listes */
-        #suggestions, #listePlanResultats {
+        #suggestions, #listePlanResultats, #suggestionsPelican {
             position: absolute; background: white; border: 1px solid #ccc; left: 0; right: 0;
             max-height: 320px; overflow-y: auto; z-index: 10; border-radius: 0 0 6px 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         }
+        #suggestionsPelican { position: absolute; left: 12px; right: 12px; }
         #listePlanResultats { position: static; max-width: 100%; margin-top: 10px; border: none; box-shadow: none; background: transparent; }
         
         .suggestion-item { padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #eee; background: white; }
         .suggestion-item:active { background: #e2e8f0; }
         
-        /* Miniatures rectangulaires 320x240 adaptées en mode liste (ex: 120px x 90px) */
         .suggestion-item img { width: 120px; height: 90px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; flex-shrink: 0; }
 
         /* Zone Résultat / Fiche Article */
-        #resultat { margin-top: 15px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
+        #resultat, #fichePelicanDetail { margin-top: 15px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
         .result-flex { display: flex; gap: 15px; align-items: flex-start; flex-direction: row; }
-        
-        /* Grande image rectangulaire 320x240 pour la fiche */
         .result-flex img { width: 160px; height: 120px; object-fit: cover; border: 1px solid #ccc; border-radius: 6px; flex-shrink: 0; }
-        
         .result-infos { font-size: 0.9rem; word-break: break-word; }
         .result-infos p { margin: 4px 0; }
-
-        /* Popup Modal */
-        #modalExistant { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 15px; }
-        .modal-content { background: white; padding: 20px; border-radius: 8px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .modal-buttons { display: flex; gap: 10px; margin-top: 15px; }
-        .modal-buttons button { margin-top: 0; }
 
         @media (max-width: 450px) {
             .result-flex { flex-direction: column; align-items: center; text-align: center; }
             .result-flex img { width: 200px; height: 150px; }
         }
     </style>
+    <!-- Inclusion de SheetJS pour lire le fichier Excel pelicans.xlsx directement -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
 <div class="container">
     <h2>
         <span>Stock AINM</span>
-
-
-<!-- Nouveau bouton d'envoi partage -->
-<button onclick="partagerStock()">Partager le stock</button>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button id="btnInstaller" onclick="installerApp()" style="display:none; background:#ff6600; width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">📲 Installer</button>
+            <button onclick="partagerStock()" style="width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">Partager le stock</button>
+        </div>
     </h2>
+
+    <!-- 0. Recherche Pelican / Plan-Repère (Dès le 3e caractère) -->
+    <div class="search-section" style="position: relative;">
+        <h3>0. Recherche Pelican / Plan-Repère</h3>
+        <label>Pelican ou Plan-Repère (Tapez dès le 3e caractère) :</label>
+        <input type="text" id="inputPelican" placeholder="Ex: PEL-01 ou PR-..." autocomplete="off">
+        <div id="suggestionsPelican"></div>
+    </div>
+
+    <!-- Fiche Détail Pelican & Composants (Montage complet) -->
+    <div id="fichePelicanDetail"></div>
 
     <!-- Recherche par Plan -->
     <div class="search-section">
@@ -130,18 +130,6 @@
         <input type="number" id="stockQuantite" value="1" min="1" pattern="[0-9]*">
         
         <button onclick="validerStockage()" style="background: #28a745; margin-top: 15px;">Enregistrer</button>
-    </div>
-</div>
-
-<!-- Modal Doublon -->
-<div id="modalExistant">
-    <div class="modal-content">
-        <h3>Pièce déjà référencée !</h3>
-        <p id="modalTexteInfo" style="font-size: 0.95rem; line-height: 1.4;"></p>
-        <div class="modal-buttons">
-            <button onclick="fusionnerQuantite()" style="background: #28a745;">Ajouter (+)</button>
-            <button onclick="forcerNouvelEmplacement()" style="background: #dc3545;">Ailleurs</button>
-        </div>
     </div>
 </div>
 
