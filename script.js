@@ -37,7 +37,7 @@ window.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.log('Erreur Service Worker :', err));
     }
 
-    // Chargement du mapping, du stock (local ou fichier excel) et de PELICAN.xlsx
+    // Chargement du mapping, du stock (local) et de PELICAN.xlsx
     Promise.all([
         fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde')),
@@ -51,16 +51,6 @@ window.addEventListener('DOMContentLoaded', () => {
         if (stockSauvegarde) {
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
-        } else {
-            // Optionnel : si tu as un fichier de stock excel (ex: STOCK.xlsx)
-            fetch('./STOCK.xlsx')
-                .then(res => res.arrayBuffer())
-                .then(buffer => {
-                    let wb = XLSX.read(new Uint8Array(buffer), {type: 'array'});
-                    stockGlobal = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-                    console.log("Stock initial chargé depuis STOCK.xlsx :", stockGlobal.length);
-                })
-                .catch(() => console.log("Aucun fichier STOCK.xlsx, démarrage à vide."));
         }
 
         // Traitement de la base PELICAN.xlsx
@@ -123,7 +113,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- GESTION DE LA RECHERCHE PELICAN / PLAN-REPÈRE ---
+// --- GESTION DE LA RECHERCHE PELICAN ---
 function afficherSuggestionsPelican(texte) {
     let container = document.getElementById('suggestionsPelican');
     container.innerHTML = '';
@@ -131,15 +121,15 @@ function afficherSuggestionsPelican(texte) {
     let recherche = texte.toLowerCase();
     
     let matches = pelicansData.filter(row => {
-        let pelican = String(row["Pelican"] || "").toLowerCase();
-        let planRep = String(row["PLANR-rep"] || "").toLowerCase();
-        return pelican.includes(recherche) || planRep.includes(recherche);
+        let pelican = String(row["pelican"] || "").toLowerCase();
+        let plan = String(row["plan"] || "").toLowerCase();
+        return pelican.includes(recherche) || plan.includes(recherche);
     });
 
-    let pelicansUniques = [...new Map(matches.map(item => [item["Pelican"], item])).values()];
+    let pelicansUniques = [...new Map(matches.map(item => [item["pelican"], item])).values()];
 
     if (pelicansUniques.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican ou plan-repère trouvé</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican ou plan trouvé</div>';
         return;
     }
 
@@ -149,18 +139,18 @@ function afficherSuggestionsPelican(texte) {
         
         div.innerHTML = `
             <div style="font-size: 14px; width: 100%;">
-                <strong style="color: #0056b3;">Pelican : ${item["Pelican"]}</strong> (Plan-Rep: ${item["PLANR-rep"]})<br>
-                <small style="color: #555;">${item["Intitulé Pelican"] || ''}</small>
+                <strong style="color: #0056b3;">Pelican : ${item["pelican"]}</strong> (Plan: ${item["plan"]})<br>
+                <small style="color: #555;">${item["int plan"] || ''}</small>
             </div>
         `;
         
         div.addEventListener('click', () => {
-            document.getElementById('inputPelican').value = item["Pelican"];
+            document.getElementById('inputPelican').value = item["pelican"];
             document.getElementById('inputPlan').value = '';
             document.getElementById('inputSymbole').value = '';
             document.getElementById('suggestions').innerHTML = '';
             container.innerHTML = '';
-            afficherDetailsPelican(item["Pelican"]);
+            afficherDetailsPelican(item["pelican"]);
         });
         
         container.appendChild(div);
@@ -169,7 +159,7 @@ function afficherSuggestionsPelican(texte) {
 
 // Affichage du kit Pelican complet et vérification des stocks composants
 function afficherDetailsPelican(codePelican) {
-    let composants = pelicansData.filter(row => row["Pelican"] === codePelican);
+    let composants = pelicansData.filter(row => String(row["pelican"]) === String(codePelican));
     if (composants.length === 0) return;
 
     let infoPelican = composants[0];
@@ -179,18 +169,18 @@ function afficherDetailsPelican(codePelican) {
     document.getElementById('resultat').style.display = 'none';
 
     let html = `
-        <h3 style="color: #0056b3; margin-top:0;">Kit / Montage : ${infoPelican["Pelican"]}</h3>
-        <p><strong>Plan-Repère :</strong> ${infoPelican["PLANR-rep"]}</p>
-        <p><strong>Intitulé :</strong> ${infoPelican["Intitulé Pelican"]}</p>
+        <h3 style="color: #0056b3; margin-top:0;">Kit / Montage : ${infoPelican["pelican"]}</h3>
+        <p><strong>Plan :</strong> ${infoPelican["plan"]}</p>
+        <p><strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ddd;">
         <h4 style="margin: 8px 0;">Composition (Symboles requis) :</h4>
         <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
     `;
 
     composants.forEach(comp => {
-        let sy = String(comp["Symbole"] || "").trim();
-        let qteRequise = parseInt(comp["Quantité"]) || 1;
-        let libSy = comp["Intitulé Symbole"] || "";
+        let sy = String(comp["SYMBOLE_ECLATE"] || "").trim();
+        let qteRequise = parseInt(comp["QUANTITE"]) || 1;
+        let libSy = comp["DESIGNATION"] || "";
         let imgUrl = `${GITHUB_MINIATURES_URL}${sy}.jpg`;
 
         let stockTrouve = stockGlobal
@@ -425,7 +415,7 @@ function validerStockage() {
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
-    document.getElementById('inputPelican').value = "";
+    document.getElementById('inputPelican.value') = "";
     document.getElementById('listePlanResultats').innerHTML = "";
     document.getElementById('suggestions').innerHTML = "";
     document.getElementById('suggestionsPelican').innerHTML = "";
