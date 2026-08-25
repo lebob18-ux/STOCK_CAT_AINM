@@ -53,10 +53,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     let cleanRep = (rawRep === "" || rawRep.includes("*")) ? "000000" : rawRep;
 
                     return {
-                        pelican: String(row.pelican || "").trim(),
+                        pelican: String(row.PELICAN || "").trim(),
                         plan: String(row.PLAN || "").trim(),
                         rep: cleanRep,
-                        intitule: String(row['int plan'] || "").trim(),
+                        intitule: String(row.INT_PLAN || "").trim(),
                         symbole: String(row.SYMBOLE_ECLATE || "").trim(),
                         quantite: parseInt(row.QUANTITE) || 1,
                         designation: String(row.DESIGNATION || "").trim()
