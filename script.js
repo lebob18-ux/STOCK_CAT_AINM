@@ -49,63 +49,58 @@ window.addEventListener('DOMContentLoaded', () => {
         catalogueGlobal = catalogueData;
         console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
-        // Gestion du stock
         if (stockSauvegarde) {
             stockGlobal = JSON.parse(stockSauvegarde);
-            console.log("Stock récupéré de la mémoire du téléphone :", stockGlobal.length, "entrées.");
+            console.log("Stock récupéré :", stockGlobal.length, "entrées.");
         }
 
-        // Traitement de la base PELICAN.xlsx
         if (pelicanBuffer) {
             let data = new Uint8Array(pelicanBuffer);
             let workbook = XLSX.read(data, {type: 'array'});
             let firstSheetName = workbook.SheetNames[0];
             pelicansData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
-            console.log("Base PELICAN.xlsx chargée depuis GitHub :", pelicansData.length, "lignes.");
-        } else {
-            console.log("Fichier PELICAN.xlsx introuvable sur le dépôt GitHub.");
+            console.log("Base PELICAN.xlsx chargée :", pelicansData.length, "lignes.");
         }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
 
-    // --- ÉCOUTEURS DE SAISIE ---
+    // --- ÉCOUTEURS DE SAISIE (Chaque champ est indépendant) ---
     
-    // 1. Recherche Pelican / Plan-repère (Dès le 3e caractère)
+    // 1. Recherche Pelican uniquement (Dès le 3e caractère)
     const inputPelican = document.getElementById('inputPelican');
     inputPelican.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
+        // On vide les autres champs pour éviter les conflits
+        if (valeur.length > 0) {
+            document.getElementById('inputSymbole').value = '';
+            document.getElementById('suggestions').innerHTML = '';
+            document.getElementById('inputPlan').value = '';
+            document.getElementById('listePlanResultats').innerHTML = '';
+        }
         if (valeur.length >= 3) {
             afficherSuggestionsPelican(valeur);
         } else {
             document.getElementById('suggestionsPelican').innerHTML = '';
+            document.getElementById('fichePelicanDetail').style.display = 'none';
         }
     });
 
-    // 2. Recherche par Symbole (Dès le 5e chiffre)
+    // 2. Recherche par Symbole uniquement
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
         if (valeur.length > 0) {
+            document.getElementById('inputPelican').value = '';
+            document.getElementById('suggestionsPelican').innerHTML = '';
+            document.getElementById('fichePelicanDetail').style.display = 'none';
             document.getElementById('inputPlan').value = '';
             document.getElementById('listePlanResultats').innerHTML = '';
-            document.getElementById('inputPelican').value = '';
-            document.getElementById('fichePelicanDetail').style.display = 'none';
         }
-
         if (valeur.length >= 5) {
             afficherSuggestionsSymbole(valeur);
         } else {
             document.getElementById('suggestions').innerHTML = '';
         }
-    });
-
-    // 3. Recherche par Plan
-    const inputPlan = document.getElementById('inputPlan');
-    inputPlan.addEventListener('input', () => {
-        document.getElementById('inputSymbole').value = '';
-        document.getElementById('suggestions').innerHTML = '';
-        document.getElementById('inputPelican').value = '';
-        document.getElementById('fichePelicanDetail').style.display = 'none';
     });
 
     // Sélection automatique de la quantité au clic
@@ -115,23 +110,25 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- GESTION DE LA RECHERCHE PELICAN ---
+// --- GESTION DE LA RECHERCHE PELICAN (Strictement Pelican) ---
 function afficherSuggestionsPelican(texte) {
     let container = document.getElementById('suggestionsPelican');
     container.innerHTML = '';
     
     let recherche = texte.toLowerCase();
     
+    // On filtre uniquement sur la colonne "pelican" ou "int plan"
     let matches = pelicansData.filter(row => {
         let pelican = String(row["pelican"] || "").toLowerCase();
-        let plan = String(row["plan"] || "").toLowerCase();
-        return pelican.includes(recherche) || plan.includes(recherche);
+        let intitule = String(row["int plan"] || "").toLowerCase();
+        return pelican.includes(recherche) || intitule.includes(recherche);
     });
 
+    // Garder des codes Pelican uniques
     let pelicansUniques = [...new Map(matches.map(item => [item["pelican"], item])).values()];
 
     if (pelicansUniques.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican ou plan trouvé</div>';
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican trouvé</div>';
         return;
     }
 
@@ -141,17 +138,16 @@ function afficherSuggestionsPelican(texte) {
         
         div.innerHTML = `
             <div style="font-size: 14px; width: 100%;">
-                <strong style="color: #0056b3;">Pelican : ${item["pelican"]}</strong> (Plan: ${item["plan"]})<br>
+                <strong style="color: #0056b3;">Pelican : ${item["pelican"]}</strong> (Plan ref: ${item["plan"]})<br>
                 <small style="color: #555;">${item["int plan"] || ''}</small>
             </div>
         `;
         
         div.addEventListener('click', () => {
             document.getElementById('inputPelican').value = item["pelican"];
-            document.getElementById('inputPlan').value = '';
-            document.getElementById('inputSymbole').value = '';
-            document.getElementById('suggestions').innerHTML = '';
             container.innerHTML = '';
+            document.getElementById('suggestions').innerHTML = '';
+            document.getElementById('listePlanResultats').innerHTML = '';
             afficherDetailsPelican(item["pelican"]);
         });
         
@@ -159,7 +155,6 @@ function afficherSuggestionsPelican(texte) {
     });
 }
 
-// Affichage du kit Pelican complet et vérification des stocks composants
 function afficherDetailsPelican(codePelican) {
     let composants = pelicansData.filter(row => String(row["pelican"]) === String(codePelican));
     if (composants.length === 0) return;
@@ -167,7 +162,6 @@ function afficherDetailsPelican(codePelican) {
     let infoPelican = composants[0];
     let divDetail = document.getElementById('fichePelicanDetail');
     divDetail.style.display = 'block';
-    
     document.getElementById('resultat').style.display = 'none';
 
     let imgKitUrl = `${GITHUB_IMG_URL}${codePelican}.jpg`;
@@ -176,12 +170,12 @@ function afficherDetailsPelican(codePelican) {
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
             <img src="${imgKitUrl}" onerror="this.src='https://via.placeholder.com/100x70?text=Kit'" style="width: 90px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid #0056b3;">
             <div>
-                <h3 style="color: #0056b3; margin:0;">Kit / Montage : ${infoPelican["pelican"]}</h3>
-                <p style="margin: 2px 0; font-size: 13px;"><strong>Plan :</strong> ${infoPelican["plan"]} | <strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
+                <h3 style="color: #0056b3; margin:0;">Kit Pelican : ${infoPelican["pelican"]}</h3>
+                <p style="margin: 2px 0; font-size: 13px;"><strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
             </div>
         </div>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ddd;">
-        <h4 style="margin: 8px 0; font-size: 14px;">Composition (Symboles requis) :</h4>
+        <h4 style="margin: 8px 0; font-size: 14px;">Composition (Vérification des stocks) :</h4>
         <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
     `;
 
@@ -214,7 +208,7 @@ function afficherDetailsPelican(codePelican) {
     divDetail.innerHTML = html;
 }
 
-// --- RECHERCHE PAR PLAN ---
+// --- RECHERCHE PAR PLAN (Strictement Plan) ---
 function rechercherParPlan() {
     let saisie = document.getElementById('inputPlan').value.trim();
     if (!saisie) return;
@@ -222,9 +216,11 @@ function rechercherParPlan() {
     let planFormate = saisie.padStart(6, '0');
     document.getElementById('inputPlan').value = planFormate;
 
+    // On vide le reste
     document.getElementById('inputSymbole').value = '';
     document.getElementById('suggestions').innerHTML = '';
     document.getElementById('inputPelican').value = '';
+    document.getElementById('suggestionsPelican').innerHTML = '';
     document.getElementById('fichePelicanDetail').style.display = 'none';
 
     let correspondances = catalogueGlobal.filter(item => item.plan === planFormate);
@@ -240,7 +236,7 @@ function rechercherParPlan() {
         afficherFiche(correspondances[0]);
     } else {
         let html = `<div style="background: #eef2f7; padding: 12px; border-radius: 6px; margin-top: 10px;">`;
-        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs REP trouvés (Cliquez sur la pièce) :</p>`;
+        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs articles trouvés pour ce plan (Cliquez sur la pièce) :</p>`;
         html += `<div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">`;
 
         correspondances.forEach(article => {
@@ -265,7 +261,6 @@ function rechercherParPlan() {
 function selectionnerArticlePlan(article) {
     document.getElementById('listePlanResultats').innerHTML = ''; 
     document.getElementById('inputPlan').value = article.plan;
-    document.getElementById('inputSymbole').value = '';
     afficherFiche(article);
 }
 
@@ -299,6 +294,7 @@ function afficherSuggestionsSymbole(prefixe) {
             document.getElementById('inputPlan').value = '';
             document.getElementById('listePlanResultats').innerHTML = '';
             document.getElementById('inputPelican').value = '';
+            document.getElementById('suggestionsPelican').innerHTML = '';
             document.getElementById('fichePelicanDetail').style.display = 'none';
             container.innerHTML = '';
             afficherFiche(article);
@@ -308,7 +304,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE & SÉLECTION DES EMPLACEMENTS ---
+// --- AFFICHAGE DE LA FICHE ARTICLE & STOCK ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -332,8 +328,8 @@ function afficherFiche(article) {
         divStock.style.border = '1px solid #c3e6cb';
         divStock.style.color = '#155724';
         
-        let htmlStock = `<strong>📦 EMPLACEMENTS EXISTANTS (${existants.length}) :</strong><br>
-        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour rajouter de la quantité, ou remplissez les champs en bas :</p>
+        let htmlStock = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>
+        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez sur un emplacement pour le sélectionner :</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
         
         existants.forEach((ex) => {
@@ -357,13 +353,14 @@ function afficherFiche(article) {
         divStock.style.backgroundColor = '#fff3cd';
         divStock.style.border = '1px solid #ffeeba';
         divStock.style.color = '#856404';
-        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée. Saisissez l'emplacement ci-dessous.`;
+        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée. Saisissez l'emplacement pour créer le stock.`;
     }
 
     document.getElementById('stockSite').value = "";
     document.getElementById('stockBatiment').value = "";
     document.getElementById('stockRang').value = "";
     document.getElementById('stockQuantite').value = "1";
+    document.getElementById('mouvementType').value = "ENTREE"; // Par défaut en entrée
     document.getElementById('resultat').style.display = 'block';
 }
 
@@ -374,17 +371,22 @@ function selectionnerEmplacementExistant(existant) {
     document.getElementById('stockQuantite').focus();
 }
 
-// --- VALIDATION DIRECTE ---
-function validerStockage() {
+// --- VALIDATION ENTRÉE / SORTIE DE STOCK ---
+function validerMouvementStock() {
     if (!articleCourant) return;
 
+    let typeMvt = document.getElementById('mouvementType').value; // 'ENTREE' ou 'SORTIE'
     let site = document.getElementById('stockSite').value.trim();
     let batiment = document.getElementById('stockBatiment').value.trim();
     let rang = document.getElementById('stockRang').value.trim();
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
 
     if (!site || !batiment || !rang) {
-        alert("Veuillez remplir tous les champs obligatoires (Site, Bâtiment, Rang) ou cliquer sur un emplacement existant.");
+        alert("Veuillez remplir ou sélectionner un emplacement (Site, Bâtiment, Rang).");
+        return;
+    }
+    if (qte <= 0) {
+        alert("Veuillez indiquer une quantité valide.");
         return;
     }
 
@@ -402,33 +404,50 @@ function validerStockage() {
                sRang.toLowerCase() === rang.toLowerCase();
     });
 
-    if (index !== -1) {
+    if (typeMvt === 'ENTREE') {
+        if (index !== -1) {
+            let currentQte = parseInt(stockGlobal[index].quantite || stockGlobal[index].Quantité) || 0;
+            stockGlobal[index].quantite = currentQte + qte;
+        } else {
+            stockGlobal.push({
+                plan: articleCourant.plan,
+                rep: articleCourant.rep,
+                symbole: articleCourant.symbole,
+                intitule: articleCourant.intitule,
+                site: site,
+                batiment: batiment,
+                rang: rang,
+                quantite: qte
+            });
+        }
+    } else { // SORTIE
+        if (index === -1) {
+            alert("Impossible de faire une sortie : cet emplacement n'existe pas dans le stock !");
+            return;
+        }
         let currentQte = parseInt(stockGlobal[index].quantite || stockGlobal[index].Quantité) || 0;
-        stockGlobal[index].quantite = currentQte + qte;
-    } else {
-        stockGlobal.push({
-            plan: articleCourant.plan,
-            rep: articleCourant.rep,
-            symbole: articleCourant.symbole,
-            intitule: articleCourant.intitule,
-            site: site,
-            batiment: batiment,
-            rang: rang,
-            quantite: qte
-        });
+        if (qte > currentQte) {
+            alert(`Stock insuffisant ! Quantité actuelle sur cet emplacement : ${currentQte}`);
+            return;
+        }
+        stockGlobal[index].quantite = currentQte - qte;
+
+        // Optionnel : si la quantité tombe à 0, on peut nettoyer ou laisser à 0
     }
 
+    // Sauvegarde locale
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
     // Réinitialisation propre
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
-    document.getElementById('inputPelican').value = ""; // Correction de la syntaxe ici
+    document.getElementById('inputPelican').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
     document.getElementById('suggestions').innerHTML = "";
     document.getElementById('suggestionsPelican').innerHTML = "";
     document.getElementById('fichePelicanDetail').style.display = 'none';
-    document.getElementById('stockQuantite').value = "1";
     articleCourant = null;
+
+    alert(typeMvt === 'ENTREE' ? "Entrée de stock enregistrée avec succès !" : "Sortie de stock enregistrée avec succès !");
 }
