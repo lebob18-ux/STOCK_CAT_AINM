@@ -277,19 +277,18 @@ function afficherFiche(article) {
     let conteneurComposants = document.getElementById('resSymbole');
     if (conteneurComposants) {
         let wrapper = document.createElement('div');
-        wrapper.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-top: 6px;";
+        wrapper.style.cssText = "display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;";
 
         composantsPlan.forEach(c => {
             let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
             let row = document.createElement('div');
-            row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px; border-radius: 4px;";
+            row.style.cssText = "display: flex; flex-direction: column; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; padding: 8px 6px 6px 6px; border-radius: 4px; text-align: center; width: 110px; flex-shrink: 0;";
             row.innerHTML = `
-                <img src="${imgSymbUrl}" style="width: 50px; height: 38px; object-fit: contain; border-radius: 3px; border: 1px solid #ccc; background: #fff; margin-right: 10px;"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2250%22 height=%2238%22%3E%3Crect width=%2250%22 height=%2238%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
-                <div style="font-size: 13px;">
-                    <strong>Symbole : ${c.symbole || '-'}</strong> | Qte : <b>${c.quantite || 1}</b><br>
-                    <small style="color: #666;">${c.designation || c.intitule || ''}</small>
-                </div>
+                <img src="${imgSymbUrl}" style="width: 100px; height: 75px; object-fit: contain; border-radius: 3px; border: 1px solid #ccc; background: #fff; margin-bottom: 6px;"
+                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2275%22%3E%3Crect width=%22100%22 height=%2275%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2211%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <div style="font-size: 12px; font-weight: bold; color: #0056b3;">${c.symbole || '-'}</div>
+                <div style="font-size: 11px; color: #333;">Qte : <b>${c.quantite || 1}</b></div>
+                <div style="font-size: 10px; color: #666; margin-top: 2px; word-break: break-word;">${c.designation || c.intitule || ''}</div>
             `;
             wrapper.appendChild(row);
         });
