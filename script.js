@@ -86,68 +86,103 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // --- ÉCOUTEUR SUR LE CHAMP PLAN ---
     const inputPlan = document.getElementById('inputPlan');
-    inputPlan.addEventListener('input', (e) => {
-        let valeur = e.target.value.trim();
-        
-        if (valeur.length > 0) {
-            document.getElementById('inputSymbole').value = '';
-            document.getElementById('suggestions').innerHTML = '';
-            document.getElementById('resultat').style.display = 'none';
-        }
+    if (inputPlan) {
+        inputPlan.addEventListener('input', () => {
+            let valeurPlan = inputPlan.value.trim();
+            if (valeurPlan.length > 0) {
+                document.getElementById('inputSymbole').value = '';
+                document.getElementById('suggestions').innerHTML = '';
+                document.getElementById('resultat').style.display = 'none';
+            }
+            afficherSuggestionsPlan();
+        });
+    }
 
-        if (valeur.length >= 3) {
-            afficherSuggestionsPlan(valeur);
-        } else {
-            document.getElementById('listePlanResultats').innerHTML = '';
-        }
-    });
+    // --- ÉCOUTEUR SUR LE CHAMP REPÈRE ---
+    const inputRep = document.getElementById('inputRep');
+    if (inputRep) {
+        inputRep.addEventListener('input', () => {
+            let valeurRep = inputRep.value.trim();
+            if (valeurRep.length > 0) {
+                document.getElementById('inputSymbole').value = '';
+                document.getElementById('suggestions').innerHTML = '';
+                document.getElementById('resultat').style.display = 'none';
+            }
+            afficherSuggestionsPlan();
+        });
+    }
 
     // Recherche par Symbole
     const inputSymbole = document.getElementById('inputSymbole');
-    inputSymbole.addEventListener('input', (e) => {
-        let valeur = e.target.value.trim();
-        if (valeur.length > 0) {
-            document.getElementById('inputPlan').value = '';
-            document.getElementById('inputRep').value = '';
-            document.getElementById('listePlanResultats').innerHTML = '';
-            document.getElementById('resultat').style.display = 'none';
-        }
-        if (valeur.length >= 5) {
-            afficherSuggestionsSymbole(valeur);
-        } else {
-            document.getElementById('suggestions').innerHTML = '';
-        }
-    });
+    if (inputSymbole) {
+        inputSymbole.addEventListener('input', (e) => {
+            let valeur = e.target.value.trim();
+            if (valeur.length > 0) {
+                if (inputPlan) inputPlan.value = '';
+                if (inputRep) inputRep.value = '';
+                document.getElementById('listePlanResultats').innerHTML = '';
+                document.getElementById('resultat').style.display = 'none';
+            }
+            if (valeur.length >= 5) {
+                afficherSuggestionsSymbole(valeur);
+            } else {
+                document.getElementById('suggestions').innerHTML = '';
+            }
+        });
+    }
 
-    document.getElementById('stockQuantite').addEventListener('focus', function() {
-        this.select();
-    });
+    const stockQuantite = document.getElementById('stockQuantite');
+    if (stockQuantite) {
+        stockQuantite.addEventListener('focus', function() {
+            this.select();
+        });
+    }
 });
 
-// --- SUGGESTIONS DE PLANS ---
-function afficherSuggestionsPlan(texte) {
+// --- RECHERCHE CROISÉE PLAN / REPÈRE (Format 000000-000000) ---
+function afficherSuggestionsPlan() {
     let container = document.getElementById('listePlanResultats');
     container.innerHTML = '';
 
-    let recherche = texte.toLowerCase();
-    let matches = cataloguePlanGlobal.filter(item => String(item.plan || "").toLowerCase().includes(recherche));
+    let recherchePlan = document.getElementById('inputPlan') ? document.getElementById('inputPlan').value.toLowerCase().trim() : "";
+    let rechercheRep = document.getElementById('inputRep') ? document.getElementById('inputRep').value.toLowerCase().trim() : "";
 
-    let plansUniques = [...new Map(matches.map(item => [item.plan, item])).values()]
-        .sort((a, b) => a.plan.localeCompare(b.plan))
+    if (!recherchePlan && !rechercheRep) {
+        return;
+    }
+
+    let matches = cataloguePlanGlobal.filter(item => {
+        let valeurComplete = String(item.plan || "").toLowerCase();
+        let parties = valeurComplete.split('-');
+        let planPartie = parties[0] || "";
+        let repPartie = parties[1] || "";
+
+        let correspondPlan = recherchePlan === "" || planPartie.includes(recherchePlan) || valeurComplete.includes(recherchePlan);
+        let correspondRep = rechercheRep === "" || repPartie.includes(rechercheRep) || valeurComplete.includes(rechercheRep);
+
+        return correspondPlan && correspondRep;
+    });
+
+    let resultatsUniques = [...new Map(matches.map(item => [item.plan, item])).values()]
         .slice(0, 10);
 
-    if (plansUniques.length === 0) {
-        container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd;">Aucun plan trouvé</div>';
+    if (resultatsUniques.length === 0) {
+        container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd;">Aucun résultat trouvé</div>';
         return;
     }
 
     let html = `<div style="background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">`;
     
-    plansUniques.forEach(article => {
+    resultatsUniques.forEach(article => {
         let artJson = JSON.stringify(article).replace(/"/g, '&quot;');
+        let parties = article.plan.split('-');
+        let affPlan = parties[0] || article.plan;
+        let affRep = parties[1] || '-';
+
         html += `
             <div onclick='selectionnerPlanDansListe(${artJson})' style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;" onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
-                <strong>Plan : ${article.plan}</strong> — <small style="color: #555;">${article.intitule || ''}</small>
+                <strong>Plan : ${affPlan}</strong> | <strong>Rep : ${affRep}</strong><br>
+                <small style="color: #555;">${article.intitule || ''}</small>
             </div>
         `;
     });
@@ -155,19 +190,24 @@ function afficherSuggestionsPlan(texte) {
     container.innerHTML = html;
 }
 
+// --- SÉLECTION AUTOMATIQUE DE LA LISTE ---
 function selectionnerPlanDansListe(article) {
-    document.getElementById('inputPlan').value = article.plan;
-    document.getElementById('inputRep').value = article.rep || '';
+    let parties = article.plan.split('-');
+    if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = parties[0] || article.plan;
+    if (document.getElementById('inputRep')) document.getElementById('inputRep').value = parties[1] || '';
     document.getElementById('listePlanResultats').innerHTML = '';
+    
+    // Affichage direct sans bouton intermédiaire
     afficherFiche(article);
 }
 
-// --- RECHERCHE MANUELLE PLAN ---
+// --- RECHERCHE MANUELLE (Si l'utilisateur appuie sur Entrée ou clique sur un bouton de recherche s'il existe encore) ---
 function rechercherPlanRepere() {
-    let brutPlan = document.getElementById('inputPlan').value.trim();
+    let brutPlan = document.getElementById('inputPlan') ? document.getElementById('inputPlan').value.trim() : "";
+    let brutRep = document.getElementById('inputRep') ? document.getElementById('inputRep').value.trim() : "";
 
-    if (!brutPlan) {
-        alert("⚠️ Veuillez renseigner le Plan.");
+    if (!brutPlan && !brutRep) {
+        alert("⚠️ Veuillez renseigner au moins le Plan ou le Repère.");
         return;
     }
 
@@ -175,10 +215,20 @@ function rechercherPlanRepere() {
     document.getElementById('suggestions').innerHTML = '';
     document.getElementById('listePlanResultats').innerHTML = '';
 
-    let correspondances = cataloguePlanGlobal.filter(item => item.plan.toLowerCase().includes(brutPlan.toLowerCase()));
+    let correspondances = cataloguePlanGlobal.filter(item => {
+        let val = String(item.plan || "").toLowerCase();
+        let parties = val.split('-');
+        let pPart = parties[0] || "";
+        let rPart = parties[1] || "";
+
+        let matchP = !brutPlan || pPart.includes(brutPlan.toLowerCase()) || val.includes(brutPlan.toLowerCase());
+        let matchR = !brutRep || rPart.includes(brutRep.toLowerCase()) || val.includes(brutRep.toLowerCase());
+
+        return matchP && matchR;
+    });
 
     if (correspondances.length === 0) {
-        alert("❌ Aucun article trouvé pour ce Plan.");
+        alert("❌ Aucun article trouvé pour cette recherche.");
         document.getElementById('resultat').style.display = 'none';
         return;
     }
@@ -206,15 +256,16 @@ function afficherSuggestionsSymbole(prefixe) {
         div.innerHTML = `
             <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/60x45?text=No'">
             <div style="font-size: 14px; margin-left: 10px;">
-                <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan} / REP: ${article.rep})<br>
+                <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan})<br>
                 <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
             </div>
         `;
         
         div.addEventListener('click', () => {
             document.getElementById('inputSymbole').value = article.symbole;
-            document.getElementById('inputPlan').value = article.plan;
-            document.getElementById('inputRep').value = article.rep || '';
+            let parties = article.plan.split('-');
+            if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = parties[0] || article.plan;
+            if (document.getElementById('inputRep')) document.getElementById('inputRep').value = parties[1] || '';
             document.getElementById('suggestions').innerHTML = '';
             afficherFiche(article);
         });
@@ -223,19 +274,26 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE ---
+// --- AFFICHAGE DE LA FICHE & DES COMPOSANTS / STOCK ---
 function afficherFiche(article) {
     articleCourant = article;
-    document.getElementById('resPlan').textContent = article.plan;
-    document.getElementById('resRep').textContent = article.rep || '-';
-    document.getElementById('resSymbole').textContent = article.symbole || '-';
+    let parties = article.plan.split('-');
+    document.getElementById('resPlan').textContent = parties[0] || article.plan;
+    document.getElementById('resRep').textContent = parties[1] || '-';
+    
+    // Récupérer TOUS les symboles / composants associés à ce plan dans PELICAN
+    let composantsPlan = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === article.plan);
+    
+    let listeSymbolesTexte = composantsPlan.map(c => `${c.symbole || '-'} (Qte: ${c.quantite || 1})`).join(', ');
+    document.getElementById('resSymbole').textContent = listeSymbolesTexte || article.symbole || '-';
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
     let img = document.getElementById('imgPiece');
-    let cleImage = article.pelican || article.symbole;
+    let cleImage = article.pelican || article.symbole || (composantsPlan[0] ? composantsPlan[0].symbole : '');
     img.src = cleImage ? `${GITHUB_IMG_URL}${cleImage}.jpg` : '';
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
+    // Gestion de l'affichage du stock existant
     let existants = stockGlobal.filter(item => 
         String(item.plan || "").trim() === article.plan
     );
@@ -318,8 +376,8 @@ function validerMouvementStock() {
 
         localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
         document.getElementById('resultat').style.display = 'none';
-        document.getElementById('inputPlan').value = "";
-        document.getElementById('inputRep').value = "";
+        if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = "";
+        if (document.getElementById('inputRep')) document.getElementById('inputRep').value = "";
         document.getElementById('listePlanResultats').innerHTML = "";
         articleCourant = null;
         alert("✅ Sortie globale du montage effectuée avec succès !");
@@ -345,7 +403,7 @@ function validerMouvementStock() {
         } else {
             stockGlobal.push({
                 plan: articleCourant.plan,
-                rep: articleCourant.rep || "",
+                rep: "",
                 symbole: articleCourant.symbole || "",
                 intitule: articleCourant.intitule || "",
                 site: site,
@@ -370,27 +428,26 @@ function validerMouvementStock() {
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
     document.getElementById('resultat').style.display = 'none';
-    document.getElementById('inputPlan').value = "";
-    document.getElementById('inputRep').value = "";
+    if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = "";
+    if (document.getElementById('inputRep')) document.getElementById('inputRep').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
     articleCourant = null;
 
     alert(typeMvt === 'ENTREE' ? "✅ Entrée de stock validée !" : "✅ Sortie de stock validée !");
 }
 
-// --- EXPORT DU STOCK (Conservé pour sortir les données si besoin) ---
+// --- EXPORT DU STOCK ---
 function exporterStockCSV() {
     if (stockGlobal.length === 0) {
         alert("⚠️ Aucun stock à exporter.");
         return;
     }
 
-    let csvContent = "data:text/csv;charset=utf-8,Plan;Rep;Symbole;Intitule;Site;Batiment;Rang;Quantite\n";
+    let csvContent = "data:text/csv;charset=utf-8,Plan;Symbole;Intitule;Site;Batiment;Rang;Quantite\n";
     
     stockGlobal.forEach(item => {
         let ligne = [
             item.plan || "",
-            item.rep || "",
             item.symbole || "",
             `"${(item.intitule || "").replace(/"/g, '""')}"`,
             item.site || "",
