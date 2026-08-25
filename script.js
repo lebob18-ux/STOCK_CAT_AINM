@@ -25,8 +25,8 @@ function installerApp() {
     });
 }
 
-let cataloguePlanGlobal = []; // Provient de PELICAN.xlsx (colonnes PLAN et REP)
-let catalogueSymboleGlobal = []; // Provient de mapping.json (Symboles SY)
+let cataloguePlanGlobal = []; 
+let catalogueSymboleGlobal = []; 
 let stockGlobal = [];      
 let articleCourant = null;
 
@@ -37,7 +37,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Chargement des données et du stock local
     Promise.all([
-        // 1. Chargement de PELICAN.xlsx
         fetch(GITHUB_BASE_URL + 'PELICAN.xlsx')
             .then(res => res.arrayBuffer())
             .then(buffer => {
@@ -60,7 +59,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 return [];
             }),
 
-        // 2. Chargement de mapping.json pour les symboles
         fetch(GITHUB_BASE_URL + 'mapping.json')
             .then(res => res.json())
             .catch(err => {
@@ -68,7 +66,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 return [];
             }),
 
-        // 3. Récupération du stock local
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ])
     .then(([planData, symboleData, stockSauvegarde]) => {
@@ -88,11 +85,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputPlan = document.getElementById('inputPlan');
     if (inputPlan) {
         inputPlan.addEventListener('input', () => {
-            if (inputPlan.value.trim().length > 0) {
-                document.getElementById('inputSymbole').value = '';
-                document.getElementById('suggestions').innerHTML = '';
-                document.getElementById('resultat').style.display = 'none';
-            }
+            // Si on modifie le plan, on vide le symbole et on cache les anciens résultats
+            document.getElementById('inputSymbole').value = '';
+            document.getElementById('suggestions').innerHTML = '';
+            document.getElementById('resultat').style.display = 'none';
             afficherSuggestionsPlan();
         });
     }
@@ -100,6 +96,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputRep = document.getElementById('inputRep');
     if (inputRep) {
         inputRep.addEventListener('input', () => {
+            document.getElementById('resultat').style.display = 'none';
             afficherSuggestionsPlan();
         });
     }
@@ -133,6 +130,7 @@ window.addEventListener('DOMContentLoaded', () => {
 // --- RECHERCHE PLAN & REPÈRE ---
 function afficherSuggestionsPlan() {
     let container = document.getElementById('listePlanResultats');
+    if (!container) return;
     container.innerHTML = '';
 
     let recherchePlan = document.getElementById('inputPlan') ? document.getElementById('inputPlan').value.toLowerCase().trim() : "";
@@ -141,8 +139,8 @@ function afficherSuggestionsPlan() {
     if (!recherchePlan && !rechercheRep) return;
 
     let matches = cataloguePlanGlobal.filter(item => {
-        let p = String(item.plan || "").toLowerCase();
-        let r = String(item.rep || "").toLowerCase();
+        let p = String(item.plan || "").toLowerCase().trim();
+        let r = String(item.rep || "").toLowerCase().trim();
 
         let matchPlan = recherchePlan === "" || p.includes(recherchePlan);
         let matchRep = rechercheRep === "" || r.includes(rechercheRep);
@@ -150,7 +148,8 @@ function afficherSuggestionsPlan() {
         return matchPlan && matchRep;
     });
 
-    let resultatsUniques = [...new Map(matches.map(item => [item.plan + "-" + item.rep, item])).values()]
+    // Utilisation d'une clé unique Plan-Repère pour éviter les doublons dans la liste
+    let resultatsUniques = [...new Map(matches.map(item => [item.plan + "_" + item.rep, item])).values()]
         .slice(0, 10);
 
     if (resultatsUniques.length === 0) {
@@ -158,13 +157,13 @@ function afficherSuggestionsPlan() {
         return;
     }
 
-    let html = `<div style="background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">`;
+    let html = `<div style="background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: absolute; z-index: 1000; width: 92%;">`;
     
     resultatsUniques.forEach(article => {
         let artJson = JSON.stringify(article).replace(/"/g, '&quot;');
         html += `
-            <div onclick='selectionnerPlanDansListe(${artJson})' style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;" onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
-                <strong>Plan : ${article.plan}</strong> | <strong>Rep : ${article.rep || '-'}</strong><br>
+            <div onclick='selectionnerPlanDansListe(${artJson})' style="padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;" onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
+                <strong>Plan : ${article.plan}</strong> | <strong>Rep : ${article.rep || 'Aucun'}</strong><br>
                 <small style="color: #555;">${article.intitule || ''}</small>
             </div>
         `;
@@ -225,17 +224,18 @@ function afficherFiche(article) {
     document.getElementById('resRep').textContent = article.rep || '-';
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
-    // 1. Récupérer TOUS les composants/symboles associés à ce plan et ce repère pour la liste détaillée
-    let composantsPlan = cataloguePlanGlobal.filter(item => 
-        String(item.plan || "").trim() === article.plan && 
-        String(item.rep || "").trim() === article.rep
-    );
+    // 1. Récupérer TOUS les composants/symboles associés à ce plan et ce repère
+    let composantsPlan = cataloguePlanGlobal.filter(item => {
+        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+        let matchRep = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
+        return matchPlan && matchRep;
+    });
     
+    // Si aucun composant trouvé avec le repère strict, on se replie sur le plan global
     if (composantsPlan.length === 0) {
-        composantsPlan = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === article.plan);
+        composantsPlan = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === String(article.plan || "").trim());
     }
     
-    // Affichage de la liste détaillée des composants avec leurs miniatures individuelles
     let conteneurComposants = document.getElementById('resSymbole');
     if (conteneurComposants) {
         let htmlComposants = `<div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">`;
@@ -263,9 +263,9 @@ function afficherFiche(article) {
     
     if (saisieSymboleActif) {
         nomImage = saisieSymboleActif;
-    } else if (article.plan && article.rep) {
+    } else if (article.plan) {
         let plan6 = String(article.plan).trim().padStart(6, '0');
-        let rep6 = String(article.rep).trim().padStart(6, '0');
+        let rep6 = article.rep ? String(article.rep).trim().padStart(6, '0') : "000000";
         nomImage = `${plan6}-${rep6}`;
     }
 
@@ -273,10 +273,12 @@ function afficherFiche(article) {
     img.onerror = () => img.src = 'https://via.placeholder.com/320x240?text=Image+Introuvable';
 
     // 3. Gestion de l'affichage du stock existant
-    let existants = stockGlobal.filter(item => 
-        String(item.plan || "").trim() === article.plan && 
-        String(item.rep || "").trim() === article.rep
-    );
+    let existants = stockGlobal.filter(item => {
+        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+        let matchRep = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
+        return matchPlan && matchRep;
+    });
+
     let divStock = document.getElementById('infoStockActuel');
     
     if (existants.length > 0) {
@@ -340,7 +342,7 @@ function validerMouvementStock() {
 
     // SORTIE GLOBALE D'UN MONTAGE
     if (typeMvt === 'SORTIE' && confirm("Confirmez-vous la sortie globale de TOUTES les pièces composant ce plan ?")) {
-        let piecesMontage = cataloguePlanGlobal.filter(item => item.plan === articleCourant.plan);
+        let piecesMontage = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === String(articleCourant.plan || "").trim());
         
         if (piecesMontage.length === 0) {
             alert("❌ Erreur : aucun composant trouvé pour ce plan dans PELICAN.");
@@ -348,7 +350,7 @@ function validerMouvementStock() {
         }
 
         for (let piece of piecesMontage) {
-            let indexStock = stockGlobal.findIndex(s => s.plan === piece.plan && s.symbole === piece.symbole);
+            let indexStock = stockGlobal.findIndex(s => String(s.plan || "").trim() === String(piece.plan || "").trim() && String(s.symbole || "").trim() === String(piece.symbole || "").trim());
             if (indexStock !== -1) {
                 stockGlobal[indexStock].quantite = Math.max(0, (parseInt(stockGlobal[indexStock].quantite) || 0) - qteDemandee);
             }
@@ -371,8 +373,8 @@ function validerMouvementStock() {
     }
 
     let index = stockGlobal.findIndex(item => 
-        String(item.plan || "").trim() === articleCourant.plan && 
-        String(item.rep || "").trim() === articleCourant.rep && 
+        String(item.plan || "").trim() === String(articleCourant.plan || "").trim() && 
+        String(item.rep || "").trim() === String(articleCourant.rep || "").trim() && 
         String(item.site || "").toLowerCase() === site.toLowerCase() && 
         String(item.batiment || "").toLowerCase() === batiment.toLowerCase() && 
         String(item.rang || "").toLowerCase() === rang.toLowerCase()
