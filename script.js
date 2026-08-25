@@ -1,5 +1,5 @@
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
-const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+const NOM_FICHIER_EXCEL = "catalogue.xlsx"; // Nom de ton fichier Excel sur le dépôt
 
 let deferredPrompt = null;
 
@@ -31,31 +31,48 @@ let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log("Service Worker non enregistré"));
     }
 
-    // Chargement du mapping et du stock local
+    // Chargement du fichier Excel et du stock local
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()).catch(() => []),
+        fetch(GITHUB_BASE_URL + NOM_FICHIER_EXCEL)
+            .then(res => res.arrayBuffer())
+            .then(buffer => {
+                let workbook = XLSX.read(buffer, { type: 'array' });
+                let premiereFeuille = workbook.SheetNames[0];
+                let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[premiereFeuille]);
+                
+                return donneesBrutes.map(row => ({
+                    plan: String(row.plan || row.Plan || "").trim(),
+                    rep: String(row.rep || row.Rep || "").trim(),
+                    symbole: String(row.symbole || row.Symbole || "").trim(),
+                    intitule: String(row.intitule || row.Intitule || "").trim(),
+                    pelican: String(row.pelican || row.Pelican || row.PELICAN || "").trim()
+                }));
+            })
+            .catch(err => {
+                console.error("Erreur de chargement des données :", err);
+                return [];
+            }),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ])
     .then(([catalogueData, stockSauvegarde]) => {
         catalogueGlobal = catalogueData;
-        console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
+        console.log("Catalogue chargé :", catalogueGlobal.length, "lignes.");
 
         if (stockSauvegarde) {
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré :", stockGlobal.length, "entrées.");
         }
     })
-    .catch(err => console.error("Erreur chargement :", err));
+    .catch(err => console.error("Erreur critique au démarrage :", err));
 
     // --- ÉCOUTEUR SUR LE CHAMP PLAN (Suggestions dès 3 caractères) ---
     const inputPlan = document.getElementById('inputPlan');
     inputPlan.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
         
-        // Nettoyage des autres recherches si on tape ici
         if (valeur.length > 0) {
             document.getElementById('inputSymbole').value = '';
             document.getElementById('suggestions').innerHTML = '';
@@ -91,17 +108,17 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- SUGGESTIONS DE PLANS (Dès 3 caractères, formaté sur 6) ---
+// --- SUGGESTIONS DE PLANS (Trié par plan) ---
 function afficherSuggestionsPlan(texte) {
     let container = document.getElementById('listePlanResultats');
     container.innerHTML = '';
 
-    // On filtre les articles dont le plan contient la saisie (ou commence par)
     let recherche = texte.toLowerCase();
     let matches = catalogueGlobal.filter(item => String(item.plan || "").toLowerCase().includes(recherche));
 
-    // Garder des plans uniques pour la liste
-    let plansUniques = [...new Map(matches.map(item => [item.plan, item])).values()].slice(0, 10); // Limité à 10 pour l'ergonomie
+    let plansUniques = [...new Map(matches.map(item => [item.plan, item])).values()]
+        .sort((a, b) => a.plan.localeCompare(b.plan))
+        .slice(0, 10);
 
     if (plansUniques.length === 0) {
         container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd;">Aucun plan trouvé</div>';
@@ -129,7 +146,7 @@ function selectionnerPlanDansListe(article) {
     afficherFiche(article);
 }
 
-// --- BOUTON DE RECHERCHE MANUELLE (Plan 6 car + Repère 6 car) ---
+// --- RECHERCHE MANUELLE PLAN / REPÈRE ---
 function rechercherPlanRepere() {
     let brutPlan = document.getElementById('inputPlan').value.trim();
     let brutRep = document.getElementById('inputRep').value.trim();
@@ -139,7 +156,6 @@ function rechercherPlanRepere() {
         return;
     }
 
-    // Force le format sur 6 caractères avec des zéros à gauche si besoin
     let planFormate = brutPlan.padStart(6, '0');
     let repFormate = brutRep ? brutRep.padStart(6, '0') : '';
 
@@ -165,7 +181,6 @@ function rechercherPlanRepere() {
     if (correspondances.length === 1) {
         afficherFiche(correspondances[0]);
     } else {
-        // S'il y a plusieurs repères pour ce même plan
         let conteneurListe = document.getElementById('listePlanResultats');
         let html = `<div style="background: #eef2f7; padding: 10px; border-radius: 6px; margin-top: 8px;"><p style="margin:0 0 6px 0; font-weight:bold; font-size:13px;">Plusieurs repères pour ce plan :</p><div style="display:flex; flex-direction:column; gap:4px;">`;
         
@@ -193,7 +208,7 @@ function afficherSuggestionsSymbole(prefixe) {
     matches.forEach(article => {
         let div = document.createElement('div');
         div.className = 'suggestion-item';
-        let imgUrl = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
+        let imgUrl = article.pelican ? `${GITHUB_IMG_URL}${article.pelican}.jpg` : '';
 
         div.innerHTML = `
             <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/60x45?text=No'">
@@ -224,7 +239,7 @@ function afficherFiche(article) {
     document.getElementById('resIntitule').textContent = article.intitule;
 
     let img = document.getElementById('imgPiece');
-    img.src = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
+    img.src = article.pelican ? `${GITHUB_IMG_URL}${article.pelican}.jpg` : '';
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
     let existants = stockGlobal.filter(item => 
@@ -277,7 +292,7 @@ function selectionnerEmplacementExistant(existant) {
     document.getElementById('stockQuantite').focus();
 }
 
-// --- MOUVEMENT DE STOCK ---
+// --- MOUVEMENT DE STOCK (Unitaire ou Montage Complet Multi-pièces) ---
 function validerMouvementStock() {
     if (!articleCourant) return;
 
@@ -285,14 +300,82 @@ function validerMouvementStock() {
     let site = document.getElementById('stockSite').value.trim();
     let batiment = document.getElementById('stockBatiment').value.trim();
     let rang = document.getElementById('stockRang').value.trim();
-    let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
+    let qteDemandee = parseInt(document.getElementById('stockQuantite').value) || 0;
 
-    if (!site || !batiment || !rang) {
-        alert("Veuillez remplir tous les champs d'emplacement (Site, Bâtiment, Rang).");
+    if (qteDemandee <= 0) {
+        alert("Quantité invalide.");
         return;
     }
-    if (qte <= 0) {
-        alert("Quantité invalide.");
+
+    // GESTION D'UN MONTAGE COMPLET EN SORTIE
+    if (typeMvt === 'SORTIE' && confirm("Voulez-vous effectuer une sortie globale de TOUTES les pièces composant ce plan ?")) {
+        // Trouver toutes les pièces du même plan dans le catalogue Excel
+        let piecesMontage = catalogueGlobal.filter(item => item.plan === articleCourant.plan);
+        
+        if (piecesMontage.length === 0) {
+            alert("Erreur : aucun composant trouvé pour ce plan.");
+            return;
+        }
+
+        // Traiter chaque pièce du montage
+        for (let piece of piecesMontage) {
+            let stockPiece = stockGlobal.filter(s => String(s.symbole || "").trim() === piece.symbole && String(s.rep || "").trim() === piece.rep);
+            let aDeduire = qteDemandee; // Multiplié par le nombre de montages demandés
+
+            if (stockPiece.length === 0) {
+                alert(`Attention : La pièce ${piece.symbole} (Rep: ${piece.rep}) n'est présente dans aucun stock.`);
+                continue;
+            }
+
+            // Si la pièce est à plusieurs endroits, on demande ou on répartit intelligemment
+            if (stockPiece.length === 1) {
+                let indexStock = stockGlobal.findIndex(s => s.symbole === piece.symbole && s.rep === piece.rep && s.site === stockPiece[0].site && s.batiment === stockPiece[0].batiment && s.rang === stockPiece[0].rang);
+                if (indexStock !== -1) {
+                    if (stockGlobal[indexStock].quantite >= aDeduire) {
+                        stockGlobal[indexStock].quantite -= aDeduire;
+                    } else {
+                        stockGlobal[indexStock].quantite = 0; // Met à zéro si stock insuffisant pour cette ligne
+                    }
+                }
+            } else {
+                // Plusieurs emplacements pour la même pièce : on demande à l'utilisateur via une sélection rapide
+                let messageChoix = `La pièce ${piece.symbole} (Plan ${piece.plan}) est présente sur plusieurs emplacements.\nChoisissez l'emplacement source pour retirer ${aDeduire} unité(s) :\n`;
+                stockPiece.forEach((sp, idx) => {
+                    messageChoix += `\n[${idx + 1}] Site: ${sp.site} | Bât: ${sp.batiment} | Rang: ${sp.rang} (Dispo: ${sp.quantite})`;
+                });
+                
+                let choix = prompt(messageChoix, "1");
+                let indexChoisi = parseInt(choix) - 1;
+                
+                if (!isNaN(indexChoisi) && stockPiece[indexChoisi]) {
+                    let spChoisi = stockPiece[indexChoisi];
+                    let indexStock = stockGlobal.findIndex(s => s.symbole === piece.symbole && s.rep === piece.rep && s.site === spChoisi.site && s.batiment === spChoisi.batiment && s.rang === spChoisi.rang);
+                    if (indexStock !== -1) {
+                        stockGlobal[indexStock].quantite = Math.max(0, stockGlobal[indexStock].quantite - aDeduire);
+                    }
+                } else {
+                    // Par défaut si annulation ou mauvais choix, on prend le premier emplacement disponible
+                    let indexStock = stockGlobal.findIndex(s => s.symbole === piece.symbole && s.rep === piece.rep && s.site === stockPiece[0].site && s.batiment === stockPiece[0].batiment && s.rang === stockPiece[0].rang);
+                    if (indexStock !== -1) {
+                        stockGlobal[indexStock].quantite = Math.max(0, stockGlobal[indexStock].quantite - aDeduire);
+                    }
+                }
+            }
+        }
+
+        localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
+        document.getElementById('resultat').style.display = 'none';
+        document.getElementById('inputPlan').value = "";
+        document.getElementById('inputRep').value = "";
+        document.getElementById('listePlanResultats').innerHTML = "";
+        articleCourant = null;
+        alert("Sortie globale du montage effectuée avec succès !");
+        return;
+    }
+
+    // MOUVEMENT CLASSIQUE (Entrée ou Sortie unitaire)
+    if (!site || !batiment || !rang) {
+        alert("Veuillez remplir tous les champs d'emplacement (Site, Bâtiment, Rang).");
         return;
     }
 
@@ -306,7 +389,7 @@ function validerMouvementStock() {
 
     if (typeMvt === 'ENTREE') {
         if (index !== -1) {
-            stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qteDemandee;
         } else {
             stockGlobal.push({
                 plan: articleCourant.plan,
@@ -316,7 +399,7 @@ function validerMouvementStock() {
                 site: site,
                 batiment: batiment,
                 rang: rang,
-                quantite: qte
+                quantite: qteDemandee
             });
         }
     } else {
@@ -325,16 +408,15 @@ function validerMouvementStock() {
             return;
         }
         let currentQte = parseInt(stockGlobal[index].quantite) || 0;
-        if (qte > currentQte) {
-            alert(`Stock insuffisant ! Quantité actuelle : ${currentQte}`);
+        if (qteDemandee > currentQte) {
+            alert(`Stock insuffisant ! Quantité actuelle disponible : ${currentQte}`);
             return;
         }
-        stockGlobal[index].quantite = currentQte - qte;
+        stockGlobal[index].quantite = currentQte - qteDemandee;
     }
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
-    // Réinitialisation
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputRep').value = "";
@@ -411,7 +493,7 @@ function importerStock(event) {
             localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
             alert("Import réussi ! (" + stockGlobal.length + " entrées)");
         } catch (err) {
-            alert("Erreur lors de l'import.");
+            alert("Erreur lors de l'importation du fichier.");
             console.error(err);
         }
     };
