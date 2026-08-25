@@ -1,5 +1,5 @@
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
-const NOM_FICHIER_EXCEL = "catalogue.xlsx"; // Nom de ton fichier Excel sur le dépôt
+const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
 let deferredPrompt = null;
 
@@ -25,7 +25,8 @@ function installerApp() {
     });
 }
 
-let catalogueGlobal = []; 
+let cataloguePlanGlobal = []; // Provient de PELICAN.xlsx
+let catalogueSymboleGlobal = []; // Provient de mapping.json
 let stockGlobal = [];      
 let articleCourant = null;
 
@@ -34,9 +35,10 @@ window.addEventListener('DOMContentLoaded', () => {
         navigator.serviceWorker.register('./sw.js').catch(err => console.log("Service Worker non enregistré"));
     }
 
-    // Chargement du fichier Excel et du stock local
+    // Chargement des deux sources distinctes et du stock local
     Promise.all([
-        fetch(GITHUB_BASE_URL + NOM_FICHIER_EXCEL)
+        // 1. Chargement de PELICAN.xlsx pour les plans
+        fetch(GITHUB_BASE_URL + 'PELICAN.xlsx')
             .then(res => res.arrayBuffer())
             .then(buffer => {
                 let workbook = XLSX.read(buffer, { type: 'array' });
@@ -52,14 +54,26 @@ window.addEventListener('DOMContentLoaded', () => {
                 }));
             })
             .catch(err => {
-                console.error("Erreur de chargement des données :", err);
+                console.error("Erreur de chargement de PELICAN.xlsx :", err);
                 return [];
             }),
+
+        // 2. Chargement de mapping.json pour les symboles
+        fetch(GITHUB_BASE_URL + 'mapping.json')
+            .then(res => res.json())
+            .catch(err => {
+                console.error("Erreur de chargement de mapping.json :", err);
+                return [];
+            }),
+
+        // 3. Récupération du stock local
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ])
-    .then(([catalogueData, stockSauvegarde]) => {
-        catalogueGlobal = catalogueData;
-        console.log("Catalogue chargé :", catalogueGlobal.length, "lignes.");
+    .then(([planData, symboleData, stockSauvegarde]) => {
+        cataloguePlanGlobal = planData;
+        catalogueSymboleGlobal = symboleData;
+        console.log("PELICAN.xlsx chargé :", cataloguePlanGlobal.length, "lignes.");
+        console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "lignes.");
 
         if (stockSauvegarde) {
             stockGlobal = JSON.parse(stockSauvegarde);
@@ -68,7 +82,7 @@ window.addEventListener('DOMContentLoaded', () => {
     })
     .catch(err => console.error("Erreur critique au démarrage :", err));
 
-    // --- ÉCOUTEUR SUR LE CHAMP PLAN (Suggestions dès 3 caractères) ---
+    // --- ÉCOUTEUR SUR LE CHAMP PLAN (Suggestions dès 3 caractères via PELICAN) ---
     const inputPlan = document.getElementById('inputPlan');
     inputPlan.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
@@ -86,7 +100,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Recherche par Symbole
+    // Recherche par Symbole (via mapping.json)
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
@@ -108,13 +122,13 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- SUGGESTIONS DE PLANS (Trié par plan) ---
+// --- SUGGESTIONS DE PLANS (Trié par plan via PELICAN) ---
 function afficherSuggestionsPlan(texte) {
     let container = document.getElementById('listePlanResultats');
     container.innerHTML = '';
 
     let recherche = texte.toLowerCase();
-    let matches = catalogueGlobal.filter(item => String(item.plan || "").toLowerCase().includes(recherche));
+    let matches = cataloguePlanGlobal.filter(item => String(item.plan || "").toLowerCase().includes(recherche));
 
     let plansUniques = [...new Map(matches.map(item => [item.plan, item])).values()]
         .sort((a, b) => a.plan.localeCompare(b.plan))
@@ -166,7 +180,7 @@ function rechercherPlanRepere() {
     document.getElementById('suggestions').innerHTML = '';
     document.getElementById('listePlanResultats').innerHTML = '';
 
-    let correspondances = catalogueGlobal.filter(item => {
+    let correspondances = cataloguePlanGlobal.filter(item => {
         let matchPlan = item.plan === planFormate;
         let matchRep = repFormate ? String(item.rep).padStart(6, '0') === repFormate : true;
         return matchPlan && matchRep;
@@ -193,12 +207,12 @@ function rechercherPlanRepere() {
     }
 }
 
-// --- RECHERCHE PAR SYMBOLE ---
+// --- RECHERCHE PAR SYMBOLE (via mapping.json) ---
 function afficherSuggestionsSymbole(prefixe) {
     let container = document.getElementById('suggestions');
     container.innerHTML = '';
     
-    let matches = catalogueGlobal.filter(item => item.symbole.startsWith(prefixe));
+    let matches = catalogueSymboleGlobal.filter(item => String(item.symbole || "").startsWith(prefixe));
 
     if (matches.length === 0) {
         container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucune correspondance</div>';
@@ -208,7 +222,7 @@ function afficherSuggestionsSymbole(prefixe) {
     matches.forEach(article => {
         let div = document.createElement('div');
         div.className = 'suggestion-item';
-        let imgUrl = article.pelican ? `${GITHUB_IMG_URL}${article.pelican}.jpg` : '';
+        let imgUrl = article.symbole ? `${GITHUB_IMG_URL}${article.symbole}.jpg` : '';
 
         div.innerHTML = `
             <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/60x45?text=No'">
@@ -239,7 +253,9 @@ function afficherFiche(article) {
     document.getElementById('resIntitule').textContent = article.intitule;
 
     let img = document.getElementById('imgPiece');
-    img.src = article.pelican ? `${GITHUB_IMG_URL}${article.pelican}.jpg` : '';
+    // Utilise pelican si présent, sinon le symbole par défaut
+    let cleImage = article.pelican || article.symbole;
+    img.src = cleImage ? `${GITHUB_IMG_URL}${cleImage}.jpg` : '';
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
     let existants = stockGlobal.filter(item => 
@@ -307,38 +323,29 @@ function validerMouvementStock() {
         return;
     }
 
-    // GESTION D'UN MONTAGE COMPLET EN SORTIE
+    // GESTION D'UN MONTAGE COMPLET EN SORTIE (via PELICAN)
     if (typeMvt === 'SORTIE' && confirm("Voulez-vous effectuer une sortie globale de TOUTES les pièces composant ce plan ?")) {
-        // Trouver toutes les pièces du même plan dans le catalogue Excel
-        let piecesMontage = catalogueGlobal.filter(item => item.plan === articleCourant.plan);
+        let piecesMontage = cataloguePlanGlobal.filter(item => item.plan === articleCourant.plan);
         
         if (piecesMontage.length === 0) {
-            alert("Erreur : aucun composant trouvé pour ce plan.");
+            alert("Erreur : aucun composant trouvé pour ce plan dans PELICAN.");
             return;
         }
 
-        // Traiter chaque pièce du montage
         for (let piece of piecesMontage) {
             let stockPiece = stockGlobal.filter(s => String(s.symbole || "").trim() === piece.symbole && String(s.rep || "").trim() === piece.rep);
-            let aDeduire = qteDemandee; // Multiplié par le nombre de montages demandés
+            let aDeduire = qteDemandee;
 
             if (stockPiece.length === 0) {
-                alert(`Attention : La pièce ${piece.symbole} (Rep: ${piece.rep}) n'est présente dans aucun stock.`);
-                continue;
+                continue; // Pièce absente du stock, on passe à la suivante
             }
 
-            // Si la pièce est à plusieurs endroits, on demande ou on répartit intelligemment
             if (stockPiece.length === 1) {
                 let indexStock = stockGlobal.findIndex(s => s.symbole === piece.symbole && s.rep === piece.rep && s.site === stockPiece[0].site && s.batiment === stockPiece[0].batiment && s.rang === stockPiece[0].rang);
                 if (indexStock !== -1) {
-                    if (stockGlobal[indexStock].quantite >= aDeduire) {
-                        stockGlobal[indexStock].quantite -= aDeduire;
-                    } else {
-                        stockGlobal[indexStock].quantite = 0; // Met à zéro si stock insuffisant pour cette ligne
-                    }
+                    stockGlobal[indexStock].quantite = Math.max(0, stockGlobal[indexStock].quantite - aDeduire);
                 }
             } else {
-                // Plusieurs emplacements pour la même pièce : on demande à l'utilisateur via une sélection rapide
                 let messageChoix = `La pièce ${piece.symbole} (Plan ${piece.plan}) est présente sur plusieurs emplacements.\nChoisissez l'emplacement source pour retirer ${aDeduire} unité(s) :\n`;
                 stockPiece.forEach((sp, idx) => {
                     messageChoix += `\n[${idx + 1}] Site: ${sp.site} | Bât: ${sp.batiment} | Rang: ${sp.rang} (Dispo: ${sp.quantite})`;
@@ -354,7 +361,6 @@ function validerMouvementStock() {
                         stockGlobal[indexStock].quantite = Math.max(0, stockGlobal[indexStock].quantite - aDeduire);
                     }
                 } else {
-                    // Par défaut si annulation ou mauvais choix, on prend le premier emplacement disponible
                     let indexStock = stockGlobal.findIndex(s => s.symbole === piece.symbole && s.rep === piece.rep && s.site === stockPiece[0].site && s.batiment === stockPiece[0].batiment && s.rang === stockPiece[0].rang);
                     if (indexStock !== -1) {
                         stockGlobal[indexStock].quantite = Math.max(0, stockGlobal[indexStock].quantite - aDeduire);
