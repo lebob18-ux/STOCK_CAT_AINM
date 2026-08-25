@@ -47,12 +47,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 
                 return donneesBrutes.map(row => ({
                     pelican: String(row.pelican || "").trim(),
-                    plan: String(row.PLAN || row.plan || "").trim(),
-                    rep: String(row.REP || row.rep || "").trim(),
-                    intitule: String(row['int plan'] || row.intitule || "").trim(),
-                    symbole: String(row.SYMBOLE_ECLATE || row.symbole || "").trim(),
-                    quantite: parseInt(row.QUANTITE || row.quantite) || 1,
-                    designation: String(row.DESIGNATION || row.designation || "").trim()
+                    plan: String(row.PLAN || "").trim(),
+                    rep: String(row.REP || "").trim(),
+                    intitule: String(row['int plan'] || "").trim(),
+                    symbole: String(row.SYMBOLE_ECLATE || "").trim(),
+                    quantite: parseInt(row.QUANTITE) || 1,
+                    designation: String(row.DESIGNATION || "").trim()
                 })).filter(item => item.plan !== "");
             })
             .catch(err => {
