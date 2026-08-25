@@ -40,8 +40,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Chargement des données et du stock local
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'PELICAN.xlsx')
-            .then(res => res.arrayBuffer())
+        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
+            .then(res => {
+                if (!res.ok) throw new Error("Fichier PELICAN1.xlsx introuvable sur GitHub");
+                return res.arrayBuffer();
+            })
             .then(buffer => {
                 let workbook = XLSX.read(buffer, { type: 'array' });
                 let premiereFeuille = workbook.SheetNames[0];
@@ -49,8 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 
                 return donneesBrutes.map(row => {
                     let rawRep = String(row.REP || "").trim();
-                    // Nettoyage automatique des repères spéciaux ou vides en "000000"
-                    let cleanRep = (rawRep === "" || rawRep.includes("*")) ? "000000" : rawRep;
+                    let cleanRep = (rawRep === "" || rawRep === "******") ? "000000" : rawRep;
 
                     return {
                         pelican: String(row.PELICAN || "").trim(),
@@ -64,7 +66,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 }).filter(item => item.plan !== "");
             })
             .catch(err => {
-                console.error("Erreur de chargement de PELICAN.xlsx :", err);
+                console.error("Erreur de chargement de PELICAN1.xlsx :", err);
                 return [];
             }),
 
@@ -80,7 +82,7 @@ window.addEventListener('DOMContentLoaded', () => {
     .then(([planData, symboleData, stockSauvegarde]) => {
         cataloguePlanGlobal = planData;
         catalogueSymboleGlobal = symboleData;
-        console.log("PELICAN.xlsx chargé :", cataloguePlanGlobal.length, "lignes.");
+        console.log("PELICAN1.xlsx chargé :", cataloguePlanGlobal.length, "lignes.");
         console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "lignes.");
 
         if (stockSauvegarde) {
@@ -284,7 +286,7 @@ function afficherFiche(article) {
         nomImage = saisieSymboleActif;
     } else if (article.plan) {
         let plan6 = String(article.plan).trim().padStart(6, '0');
-        let repClean = (article.rep && article.rep !== "") ? article.rep : "000000";
+        let repClean = (article.rep && article.rep !== "000000") ? article.rep : "000000";
         let rep6 = String(repClean).trim().padStart(6, '0');
         nomImage = `${plan6}-${rep6}`;
     }
@@ -368,7 +370,7 @@ function validerMouvementStock() {
         let piecesMontage = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === String(articleCourant.plan || "").trim());
         
         if (piecesMontage.length === 0) {
-            alert("❌ Erreur : aucun composant trouvé pour ce plan dans PELICAN.");
+            alert("❌ Erreur : aucun composant trouvé pour ce plan dans PELICAN1.");
             return;
         }
 
