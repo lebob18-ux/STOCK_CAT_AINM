@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestion de Stock - Terrain</title>
+    <title>Gestion de Stock LUC</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -128,10 +128,13 @@
         <label>Recherche par Plan et Repère :</label>
         <div style="display: flex; gap: 8px; margin-bottom: 4px;">
             <div style="flex: 1; position: relative;">
-                <input type="text" id="inputPlan" placeholder="Plan (ex: 123)" maxlength="6" autocomplete="off">
+                <!-- Champ PLAN (Pavé numérique) -->
+                <input type="text" id="inputPlan" inputmode="numeric" pattern="[0-9]*" placeholder="N° de plan (ex: 123456)">
+                
             </div>
             <div style="flex: 1;">
-                <input type="text" id="inputRep" placeholder="Repère (ex: 000001)" maxlength="6" autocomplete="off">
+                <!-- Champ REPÈRE (Pavé numérique aussi si ce sont des chiffres) -->
+            <input type="text" id="inputRep" inputmode="numeric" pattern="[0-9]*" placeholder="N° de repère (ex: 654321)">
             </div>
         </div>
         <!-- Conteneur des suggestions automatiques du plan -->
@@ -143,7 +146,8 @@
     <!-- RECHERCHE ALTERNATIVE PAR SYMBOLE -->
     <div class="search-group" style="margin-top: 15px;">
         <label for="inputSymbole">Ou Recherche par Symbole :</label>
-        <input type="text" id="inputSymbole" placeholder="Tapez le symbole (min 5 caractères)..." autocomplete="off">
+        <!-- Champ SYMBOLE / SY (Pavé numérique) -->
+        <input type="text" id="inputSymbole" inputmode="numeric" pattern="[0-9]*" placeholder="Rechercher par symbole...">
         <div id="suggestions"></div>
     </div>
 
