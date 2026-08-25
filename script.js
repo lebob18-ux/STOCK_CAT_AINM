@@ -1,4 +1,3 @@
-// URL de ton dépôt central GitHub structuré avec le dossier IMG_JPG
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -28,24 +27,19 @@ function installerApp() {
 
 let catalogueGlobal = []; 
 let stockGlobal = [];      
-let pelicansData = [];     // Données lues depuis PELICAN.xlsx
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
-    // --- ENREGISTREMENT DU SERVICE WORKER (PWA) ---
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js')
-            .then(reg => console.log('Service Worker enregistré !', reg.scope))
-            .catch(err => console.log('Erreur Service Worker :', err));
+        navigator.serviceWorker.register('./sw.js').catch(err => console.log(err));
     }
 
-    // Chargement du mapping, du stock (local) et de PELICAN.xlsx depuis MIGNATURE_K1
+    // Chargement du mapping et du stock local
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()),
-        Promise.resolve(localStorage.getItem('stock_local_sauvegarde')),
-        fetch(GITHUB_BASE_URL + 'PELICAN.xlsx').then(res => res.arrayBuffer()).catch(() => null)
+        fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()).catch(() => []),
+        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ])
-    .then(([catalogueData, stockSauvegarde, pelicanBuffer]) => {
+    .then(([catalogueData, stockSauvegarde]) => {
         catalogueGlobal = catalogueData;
         console.log("Catalogue chargé :", catalogueGlobal.length, "articles.");
 
@@ -53,48 +47,37 @@ window.addEventListener('DOMContentLoaded', () => {
             stockGlobal = JSON.parse(stockSauvegarde);
             console.log("Stock récupéré :", stockGlobal.length, "entrées.");
         }
-
-        if (pelicanBuffer) {
-            let data = new Uint8Array(pelicanBuffer);
-            let workbook = XLSX.read(data, {type: 'array'});
-            let firstSheetName = workbook.SheetNames[0];
-            pelicansData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
-            console.log("Base PELICAN.xlsx chargée :", pelicansData.length, "lignes.");
-        }
     })
-    .catch(err => console.error("Erreur de chargement des fichiers :", err));
+    .catch(err => console.error("Erreur chargement :", err));
 
-    // --- ÉCOUTEURS DE SAISIE (Chaque champ est indépendant) ---
-    
-    // 1. Recherche Pelican uniquement (Dès le 3e caractère)
-    const inputPelican = document.getElementById('inputPelican');
-    inputPelican.addEventListener('input', (e) => {
+    // --- ÉCOUTEUR SUR LE CHAMP PLAN (Suggestions dès 3 caractères) ---
+    const inputPlan = document.getElementById('inputPlan');
+    inputPlan.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
-        // On vide les autres champs pour éviter les conflits
+        
+        // Nettoyage des autres recherches si on tape ici
         if (valeur.length > 0) {
             document.getElementById('inputSymbole').value = '';
             document.getElementById('suggestions').innerHTML = '';
-            document.getElementById('inputPlan').value = '';
-            document.getElementById('listePlanResultats').innerHTML = '';
+            document.getElementById('resultat').style.display = 'none';
         }
+
         if (valeur.length >= 3) {
-            afficherSuggestionsPelican(valeur);
+            afficherSuggestionsPlan(valeur);
         } else {
-            document.getElementById('suggestionsPelican').innerHTML = '';
-            document.getElementById('fichePelicanDetail').style.display = 'none';
+            document.getElementById('listePlanResultats').innerHTML = '';
         }
     });
 
-    // 2. Recherche par Symbole uniquement
+    // Recherche par Symbole
     const inputSymbole = document.getElementById('inputSymbole');
     inputSymbole.addEventListener('input', (e) => {
         let valeur = e.target.value.trim();
         if (valeur.length > 0) {
-            document.getElementById('inputPelican').value = '';
-            document.getElementById('suggestionsPelican').innerHTML = '';
-            document.getElementById('fichePelicanDetail').style.display = 'none';
             document.getElementById('inputPlan').value = '';
+            document.getElementById('inputRep').value = '';
             document.getElementById('listePlanResultats').innerHTML = '';
+            document.getElementById('resultat').style.display = 'none';
         }
         if (valeur.length >= 5) {
             afficherSuggestionsSymbole(valeur);
@@ -103,165 +86,96 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Sélection automatique de la quantité au clic
-    const inputQuantite = document.getElementById('stockQuantite');
-    inputQuantite.addEventListener('focus', function() {
+    document.getElementById('stockQuantite').addEventListener('focus', function() {
         this.select();
     });
 });
 
-// --- GESTION DE LA RECHERCHE PELICAN (Strictement Pelican) ---
-function afficherSuggestionsPelican(texte) {
-    let container = document.getElementById('suggestionsPelican');
+// --- SUGGESTIONS DE PLANS (Dès 3 caractères, formaté sur 6) ---
+function afficherSuggestionsPlan(texte) {
+    let container = document.getElementById('listePlanResultats');
     container.innerHTML = '';
-    
+
+    // On filtre les articles dont le plan contient la saisie (ou commence par)
     let recherche = texte.toLowerCase();
-    
-    // On filtre uniquement sur la colonne "pelican" ou "int plan"
-    let matches = pelicansData.filter(row => {
-        let pelican = String(row["pelican"] || "").toLowerCase();
-        let intitule = String(row["int plan"] || "").toLowerCase();
-        return pelican.includes(recherche) || intitule.includes(recherche);
-    });
+    let matches = catalogueGlobal.filter(item => String(item.plan || "").toLowerCase().includes(recherche));
 
-    // Garder des codes Pelican uniques
-    let pelicansUniques = [...new Map(matches.map(item => [item["pelican"], item])).values()];
+    // Garder des plans uniques pour la liste
+    let plansUniques = [...new Map(matches.map(item => [item.plan, item])).values()].slice(0, 10); // Limité à 10 pour l'ergonomie
 
-    if (pelicansUniques.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucun Pelican trouvé</div>';
+    if (plansUniques.length === 0) {
+        container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd;">Aucun plan trouvé</div>';
         return;
     }
 
-    pelicansUniques.forEach(item => {
-        let div = document.createElement('div');
-        div.className = 'suggestion-item';
-        
-        div.innerHTML = `
-            <div style="font-size: 14px; width: 100%;">
-                <strong style="color: #0056b3;">Pelican : ${item["pelican"]}</strong> (Plan ref: ${item["plan"]})<br>
-                <small style="color: #555;">${item["int plan"] || ''}</small>
-            </div>
-        `;
-        
-        div.addEventListener('click', () => {
-            document.getElementById('inputPelican').value = item["pelican"];
-            container.innerHTML = '';
-            document.getElementById('suggestions').innerHTML = '';
-            document.getElementById('listePlanResultats').innerHTML = '';
-            afficherDetailsPelican(item["pelican"]);
-        });
-        
-        container.appendChild(div);
-    });
-}
-
-function afficherDetailsPelican(codePelican) {
-    let composants = pelicansData.filter(row => String(row["pelican"]) === String(codePelican));
-    if (composants.length === 0) return;
-
-    let infoPelican = composants[0];
-    let divDetail = document.getElementById('fichePelicanDetail');
-    divDetail.style.display = 'block';
-    document.getElementById('resultat').style.display = 'none';
-
-    let imgKitUrl = `${GITHUB_IMG_URL}${codePelican}.jpg`;
-
-    let html = `
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
-            <img src="${imgKitUrl}" onerror="this.src='https://via.placeholder.com/100x70?text=Kit'" style="width: 90px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid #0056b3;">
-            <div>
-                <h3 style="color: #0056b3; margin:0;">Kit Pelican : ${infoPelican["pelican"]}</h3>
-                <p style="margin: 2px 0; font-size: 13px;"><strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
-            </div>
-        </div>
-        <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ddd;">
-        <h4 style="margin: 8px 0; font-size: 14px;">Composition (Vérification des stocks) :</h4>
-        <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
-    `;
-
-    composants.forEach(comp => {
-        let sy = String(comp["SYMBOLE_ECLATE"] || "").trim();
-        let qteRequise = parseInt(comp["QUANTITE"]) || 1;
-        let libSy = comp["DESIGNATION"] || "";
-        let imgUrl = `${GITHUB_IMG_URL}${sy}.jpg`;
-
-        let stockTrouve = stockGlobal
-            .filter(s => String(s.symbole || s.Symbole || "").trim() === sy)
-            .reduce((total, s) => total + (parseInt(s.quantite || s.Quantité) || 0), 0);
-
-        let statusColor = stockTrouve >= qteRequise ? "#d4edda" : "#f8d7da";
-        let statusBorder = stockTrouve >= qteRequise ? "#c3e6cb" : "#f5c6cb";
-        let statusText = stockTrouve >= qteRequise ? `✅ En stock (${stockTrouve}/${qteRequise})` : `⚠️ Manquant (${stockTrouve}/${qteRequise})`;
-
-        html += `
-            <div style="display: flex; align-items: center; gap: 10px; background: ${statusColor}; border: 1px solid ${statusBorder}; padding: 8px; border-radius: 6px;">
-                <img src="${imgUrl}" style="width: 70px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;" onerror="this.src='https://via.placeholder.com/70x50?text=No'">
-                <div style="font-size: 13px; flex: 1;">
-                    <strong>Sy: ${sy}</strong> - ${libSy}<br>
-                    <span>Requis : <b>${qteRequise}</b></span> | <span style="font-weight: bold;">${statusText}</span>
-                </div>
-            </div>
-        `;
-    });
-
-    html += `</div>`;
-    divDetail.innerHTML = html;
-}
-
-// --- RECHERCHE PAR PLAN (Strictement Plan) ---
-function rechercherParPlan() {
-    let saisie = document.getElementById('inputPlan').value.trim();
-    if (!saisie) return;
+    let html = `<div style="background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">`;
     
-    let planFormate = saisie.padStart(6, '0');
-    document.getElementById('inputPlan').value = planFormate;
+    plansUniques.forEach(article => {
+        let artJson = JSON.stringify(article).replace(/"/g, '&quot;');
+        html += `
+            <div onclick='selectionnerPlanDansListe(${artJson})' style="padding: 8px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;" onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
+                <strong>Plan : ${article.plan}</strong> — <small style="color: #555;">${article.intitule || ''}</small>
+            </div>
+        `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+}
 
-    // On vide le reste
+function selectionnerPlanDansListe(article) {
+    document.getElementById('inputPlan').value = article.plan;
+    document.getElementById('inputRep').value = article.rep || '';
+    document.getElementById('listePlanResultats').innerHTML = '';
+    afficherFiche(article);
+}
+
+// --- BOUTON DE RECHERCHE MANUELLE (Plan 6 car + Repère 6 car) ---
+function rechercherPlanRepere() {
+    let brutPlan = document.getElementById('inputPlan').value.trim();
+    let brutRep = document.getElementById('inputRep').value.trim();
+
+    if (!brutPlan) {
+        alert("Veuillez renseigner au moins le Plan.");
+        return;
+    }
+
+    // Force le format sur 6 caractères avec des zéros à gauche si besoin
+    let planFormate = brutPlan.padStart(6, '0');
+    let repFormate = brutRep ? brutRep.padStart(6, '0') : '';
+
+    document.getElementById('inputPlan').value = planFormate;
+    if (brutRep) document.getElementById('inputRep').value = repFormate;
+
     document.getElementById('inputSymbole').value = '';
     document.getElementById('suggestions').innerHTML = '';
-    document.getElementById('inputPelican').value = '';
-    document.getElementById('suggestionsPelican').innerHTML = '';
-    document.getElementById('fichePelicanDetail').style.display = 'none';
+    document.getElementById('listePlanResultats').innerHTML = '';
 
-    let correspondances = catalogueGlobal.filter(item => item.plan === planFormate);
-    let conteneurListe = document.getElementById('listePlanResultats');
-    conteneurListe.innerHTML = '';
+    let correspondances = catalogueGlobal.filter(item => {
+        let matchPlan = item.plan === planFormate;
+        let matchRep = repFormate ? String(item.rep).padStart(6, '0') === repFormate : true;
+        return matchPlan && matchRep;
+    });
 
     if (correspondances.length === 0) {
-        alert("Aucun article trouvé pour le plan : " + planFormate);
+        alert("Aucun article trouvé pour ce Plan / Repère.");
+        document.getElementById('resultat').style.display = 'none';
         return;
     }
 
     if (correspondances.length === 1) {
         afficherFiche(correspondances[0]);
     } else {
-        let html = `<div style="background: #eef2f7; padding: 12px; border-radius: 6px; margin-top: 10px;">`;
-        html += `<p style="margin: 0 0 10px 0; font-weight: bold; font-size: 14px;">Plusieurs articles trouvés pour ce plan (Cliquez sur la pièce) :</p>`;
-        html += `<div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">`;
-
+        // S'il y a plusieurs repères pour ce même plan
+        let conteneurListe = document.getElementById('listePlanResultats');
+        let html = `<div style="background: #eef2f7; padding: 10px; border-radius: 6px; margin-top: 8px;"><p style="margin:0 0 6px 0; font-weight:bold; font-size:13px;">Plusieurs repères pour ce plan :</p><div style="display:flex; flex-direction:column; gap:4px;">`;
+        
         correspondances.forEach(article => {
-            let imgUrl = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
-            let articleJson = JSON.stringify(article).replace(/"/g, '&quot;');
-            
-            html += `
-                <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 12px; background: white;">
-                    <img src="${imgUrl}" style="width: 70px; height: 50px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/70x50?text=No'">
-                    <div style="font-size: 14px;">
-                        <strong style="font-size: 15px; color: #0056b3;">REP : ${article.rep}</strong> | Symbole : ${article.symbole}<br>
-                        <small style="color: #555; display: inline-block; margin-top: 4px;">${article.intitule}</small>
-                    </div>
-                </div>
-            `;
+            let artJson = JSON.stringify(article).replace(/"/g, '&quot;');
+            html += `<div onclick='selectionnerPlanDansListe(${artJson})' style="cursor:pointer; background:white; padding:6px; border:1px solid #ddd; border-radius:4px; font-size:13px;">REP : <b>${article.rep}</b> - ${article.intitule}</div>`;
         });
         html += `</div></div>`;
         conteneurListe.innerHTML = html;
     }
-}
-
-function selectionnerArticlePlan(article) {
-    document.getElementById('listePlanResultats').innerHTML = ''; 
-    document.getElementById('inputPlan').value = article.plan;
-    afficherFiche(article);
 }
 
 // --- RECHERCHE PAR SYMBOLE ---
@@ -291,12 +205,9 @@ function afficherSuggestionsSymbole(prefixe) {
         
         div.addEventListener('click', () => {
             document.getElementById('inputSymbole').value = article.symbole;
-            document.getElementById('inputPlan').value = '';
-            document.getElementById('listePlanResultats').innerHTML = '';
-            document.getElementById('inputPelican').value = '';
-            document.getElementById('suggestionsPelican').innerHTML = '';
-            document.getElementById('fichePelicanDetail').style.display = 'none';
-            container.innerHTML = '';
+            document.getElementById('inputPlan').value = article.plan;
+            document.getElementById('inputRep').value = article.rep || '';
+            document.getElementById('suggestions').innerHTML = '';
             afficherFiche(article);
         });
         
@@ -304,7 +215,7 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE ARTICLE & STOCK ---
+// --- AFFICHAGE DE LA FICHE ---
 function afficherFiche(article) {
     articleCourant = article;
     document.getElementById('resPlan').textContent = article.plan;
@@ -317,8 +228,8 @@ function afficherFiche(article) {
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
     let existants = stockGlobal.filter(item => 
-        String(item.symbole || item.Symbole || "").trim() === article.symbole && 
-        String(item.rep || item.Rep || "").trim() === article.rep
+        String(item.symbole || "").trim() === article.symbole && 
+        String(item.rep || "").trim() === article.rep
     );
     let divStock = document.getElementById('infoStockActuel');
     
@@ -329,20 +240,15 @@ function afficherFiche(article) {
         divStock.style.color = '#155724';
         
         let htmlStock = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>
-        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez sur un emplacement pour le sélectionner :</p>
+        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>
         <div style="display: flex; flex-direction: column; gap: 6px;">`;
         
         existants.forEach((ex) => {
             let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
-            let siteVal = ex.site || ex.Site || "";
-            let batVal = ex.batiment || ex.Batiment || "";
-            let rangVal = ex.rang || ex.Rang || "";
-            let qteVal = ex.quantite || ex.Quantité || 0;
-
             htmlStock += `
                 <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>📍 Site: <b>${siteVal}</b> | Bât: <b>${batVal}</b> | Rang: <b>${rangVal}</b></div>
-                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${qteVal}</div>
+                    <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
                 </div>
             `;
         });
@@ -353,61 +259,54 @@ function afficherFiche(article) {
         divStock.style.backgroundColor = '#fff3cd';
         divStock.style.border = '1px solid #ffeeba';
         divStock.style.color = '#856404';
-        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Pièce non référencée. Saisissez l'emplacement pour créer le stock.`;
+        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Saisissez l'emplacement pour créer le stock.`;
     }
 
     document.getElementById('stockSite').value = "";
     document.getElementById('stockBatiment').value = "";
     document.getElementById('stockRang').value = "";
     document.getElementById('stockQuantite').value = "1";
-    document.getElementById('mouvementType').value = "ENTREE"; // Par défaut en entrée
+    document.getElementById('mouvementType').value = "ENTREE";
     document.getElementById('resultat').style.display = 'block';
 }
 
 function selectionnerEmplacementExistant(existant) {
-    document.getElementById('stockSite').value = existant.site || existant.Site || "";
-    document.getElementById('stockBatiment').value = existant.batiment || existant.Batiment || "";
-    document.getElementById('stockRang').value = existant.rang || existant.Rang || "";
+    document.getElementById('stockSite').value = existant.site || "";
+    document.getElementById('stockBatiment').value = existant.batiment || "";
+    document.getElementById('stockRang').value = existant.rang || "";
     document.getElementById('stockQuantite').focus();
 }
 
-// --- VALIDATION ENTRÉE / SORTIE DE STOCK ---
+// --- MOUVEMENT DE STOCK ---
 function validerMouvementStock() {
     if (!articleCourant) return;
 
-    let typeMvt = document.getElementById('mouvementType').value; // 'ENTREE' ou 'SORTIE'
+    let typeMvt = document.getElementById('mouvementType').value;
     let site = document.getElementById('stockSite').value.trim();
     let batiment = document.getElementById('stockBatiment').value.trim();
     let rang = document.getElementById('stockRang').value.trim();
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
 
     if (!site || !batiment || !rang) {
-        alert("Veuillez remplir ou sélectionner un emplacement (Site, Bâtiment, Rang).");
+        alert("Veuillez remplir tous les champs d'emplacement (Site, Bâtiment, Rang).");
         return;
     }
     if (qte <= 0) {
-        alert("Veuillez indiquer une quantité valide.");
+        alert("Quantité invalide.");
         return;
     }
 
-    let index = stockGlobal.findIndex(item => {
-        let sSym = String(item.symbole || item.Symbole || "").trim();
-        let sRep = String(item.rep || item.Rep || "").trim();
-        let sSite = String(item.site || item.Site || "").trim();
-        let sBat = String(item.batiment || item.Batiment || "").trim();
-        let sRang = String(item.rang || item.Rang || "").trim();
-
-        return sSym === articleCourant.symbole && 
-               sRep === articleCourant.rep && 
-               sSite.toLowerCase() === site.toLowerCase() && 
-               sBat.toLowerCase() === batiment.toLowerCase() && 
-               sRang.toLowerCase() === rang.toLowerCase();
-    });
+    let index = stockGlobal.findIndex(item => 
+        String(item.symbole || "").trim() === articleCourant.symbole && 
+        String(item.rep || "").trim() === articleCourant.rep && 
+        String(item.site || "").toLowerCase() === site.toLowerCase() && 
+        String(item.batiment || "").toLowerCase() === batiment.toLowerCase() && 
+        String(item.rang || "").toLowerCase() === rang.toLowerCase()
+    );
 
     if (typeMvt === 'ENTREE') {
         if (index !== -1) {
-            let currentQte = parseInt(stockGlobal[index].quantite || stockGlobal[index].Quantité) || 0;
-            stockGlobal[index].quantite = currentQte + qte;
+            stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qte;
         } else {
             stockGlobal.push({
                 plan: articleCourant.plan,
@@ -420,34 +319,101 @@ function validerMouvementStock() {
                 quantite: qte
             });
         }
-    } else { // SORTIE
+    } else {
         if (index === -1) {
-            alert("Impossible de faire une sortie : cet emplacement n'existe pas dans le stock !");
+            alert("Erreur : cet emplacement n'existe pas en stock.");
             return;
         }
-        let currentQte = parseInt(stockGlobal[index].quantite || stockGlobal[index].Quantité) || 0;
+        let currentQte = parseInt(stockGlobal[index].quantite) || 0;
         if (qte > currentQte) {
-            alert(`Stock insuffisant ! Quantité actuelle sur cet emplacement : ${currentQte}`);
+            alert(`Stock insuffisant ! Quantité actuelle : ${currentQte}`);
             return;
         }
         stockGlobal[index].quantite = currentQte - qte;
-
-        // Optionnel : si la quantité tombe à 0, on peut nettoyer ou laisser à 0
     }
 
-    // Sauvegarde locale
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
-    // Réinitialisation propre
+    // Réinitialisation
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
-    document.getElementById('inputSymbole').value = "";
-    document.getElementById('inputPelican').value = "";
+    document.getElementById('inputRep').value = "";
     document.getElementById('listePlanResultats').innerHTML = "";
-    document.getElementById('suggestions').innerHTML = "";
-    document.getElementById('suggestionsPelican').innerHTML = "";
-    document.getElementById('fichePelicanDetail').style.display = 'none';
     articleCourant = null;
 
-    alert(typeMvt === 'ENTREE' ? "Entrée de stock enregistrée avec succès !" : "Sortie de stock enregistrée avec succès !");
+    alert(typeMvt === 'ENTREE' ? "Entrée de stock validée !" : "Sortie de stock validée !");
+}
+
+// --- EXPORT & IMPORT DU STOCK ---
+function exporterStockCSV() {
+    if (stockGlobal.length === 0) {
+        alert("Aucun stock à exporter.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,Plan;Rep;Symbole;Intitule;Site;Batiment;Rang;Quantite\n";
+    
+    stockGlobal.forEach(item => {
+        let ligne = [
+            item.plan || "",
+            item.rep || "",
+            item.symbole || "",
+            `"${(item.intitule || "").replace(/"/g, '""')}"`,
+            item.site || "",
+            item.batiment || "",
+            item.rang || "",
+            item.quantite || 0
+        ].join(";");
+        csvContent += ligne + "\n";
+    });
+
+    let encodedUri = encodeURI(csvContent);
+    let link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "stock_terrain_" + new Date().toISOString().slice(0,10) + ".csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+function importerStock(event) {
+    let file = event.target.files[0];
+    if (!file) return;
+
+    let reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            let content = e.target.result;
+            if (file.name.endsWith('.json')) {
+                stockGlobal = JSON.parse(content);
+            } else {
+                let lignes = content.split('\n');
+                let nouveauStock = [];
+                for (let i = 1; i < lignes.length; i++) {
+                    let ligne = lignes[i].trim();
+                    if (!ligne) continue;
+                    let cols = ligne.split(';');
+                    if (cols.length >= 8) {
+                        nouveauStock.push({
+                            plan: cols[0],
+                            rep: cols[1],
+                            symbole: cols[2],
+                            intitule: cols[3].replace(/^"|"$/g, ''),
+                            site: cols[4],
+                            batiment: cols[5],
+                            rang: cols[6],
+                            quantite: parseInt(cols[7]) || 0
+                        });
+                    }
+                }
+                stockGlobal = nouveauStock;
+            }
+            localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
+            alert("Import réussi ! (" + stockGlobal.length + " entrées)");
+        } catch (err) {
+            alert("Erreur lors de l'import.");
+            console.error(err);
+        }
+    };
+    reader.readAsText(file);
 }
