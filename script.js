@@ -239,7 +239,6 @@ function afficherFiche(article) {
     if (resRep) resRep.textContent = article.rep || '-';
     if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
-    // 1. Récupérer TOUS les composants/symboles associés à ce plan et ce repère
     let composantsPlan = cataloguePlanGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -270,7 +269,6 @@ function afficherFiche(article) {
         conteneurComposants.innerHTML = htmlComposants;
     }
 
-    // 2. Gestion de l'image principale du Plan
     let img = document.getElementById('imgPiece');
     let nomImage = "";
     let saisieSymboleActif = document.getElementById('inputSymbole') ? document.getElementById('inputSymbole').value.trim() : "";
@@ -288,7 +286,6 @@ function afficherFiche(article) {
         img.onerror = () => img.src = 'https://via.placeholder.com/320x240?text=Image+Introuvable';
     }
 
-    // 3. Gestion de l'affichage du stock existant
     let existants = stockGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -359,7 +356,6 @@ function validerMouvementStock() {
         return;
     }
 
-    // SORTIE GLOBALE D'UN MONTAGE
     if (typeMvt === 'SORTIE' && confirm("Confirmez-vous la sortie globale de TOUTES les pièces composant ce plan ?")) {
         let piecesMontage = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === String(articleCourant.plan || "").trim());
         
@@ -387,7 +383,6 @@ function validerMouvementStock() {
         return;
     }
 
-    // MOUVEMENT CLASSIQUE
     if (!site || !batiment || !rang) {
         alert("⚠️ Veuillez remplir tous les champs d'emplacement (Site, Bâtiment, Rang).");
         return;
