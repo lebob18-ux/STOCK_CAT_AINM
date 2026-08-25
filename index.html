@@ -2,137 +2,174 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion de Stock - Terrain</title>
-    <link rel="manifest" href="manifest.json">
+    <!-- Lien vers le fichier de style si tu en as un, ou styles intégrés -->
     <style>
-        * { box-sizing: border-box; }
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            margin: 0; padding: 10px; background-color: #f4f6f9; color: #333; 
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 15px;
+            color: #333;
         }
-        .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
         h2 {
-            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 0; font-size: 1.3rem;
+            color: #0056b3;
+            text-align: center;
+            margin-top: 0;
         }
-        h2 span { color: #0056b3; }
-        h3 { font-size: 1.1rem; margin-bottom: 8px; color: #0056b3; }
-        
-        .search-section { margin-bottom: 15px; padding: 12px; background: #eef2f7; border-radius: 6px; position: relative; }
-        label { font-weight: bold; display: block; margin-top: 8px; margin-bottom: 4px; font-size: 0.9rem; }
-        
-        input, select { padding: 12px; width: 100%; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; background: #fff; }
-        
-        button { 
-            padding: 12px 15px; font-size: 16px; background: #0056b3; color: white; border: none; 
-            border-radius: 6px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold; 
+        .search-group {
+            margin-bottom: 15px;
         }
-        button:active { background: #004085; }
-
-        /* Suggestions et listes */
-        #suggestions, #listePlanResultats, #suggestionsPelican {
-            position: absolute; background: white; border: 1px solid #ccc; left: 0; right: 0;
-            max-height: 320px; overflow-y: auto; z-index: 10; border-radius: 0 0 6px 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 14px;
         }
-        #suggestionsPelican { position: absolute; left: 12px; right: 12px; }
-        #listePlanResultats { position: static; max-width: 100%; margin-top: 10px; border: none; box-shadow: none; background: transparent; }
-        
-        .suggestion-item { padding: 10px; cursor: pointer; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid #eee; background: white; }
-        .suggestion-item:active { background: #e2e8f0; }
-        
-        .suggestion-item img { width: 120px; height: 90px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; flex-shrink: 0; }
-
-        /* Zone Résultat / Fiche Article */
-        #resultat, #fichePelicanDetail { margin-top: 15px; padding: 12px; border: 1px solid #ddd; border-radius: 6px; display: none; background: #fff; }
-        .result-flex { display: flex; gap: 15px; align-items: flex-start; flex-direction: row; }
-        .result-flex img { width: 160px; height: 120px; object-fit: cover; border: 1px solid #ccc; border-radius: 6px; flex-shrink: 0; }
-        .result-infos { font-size: 0.9rem; word-break: break-word; }
-        .result-infos p { margin: 4px 0; }
-
-        @media (max-width: 450px) {
-            .result-flex { flex-direction: column; align-items: center; text-align: center; }
-            .result-flex img { width: 200px; height: 150px; }
+        input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .suggestion-item {
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            background: #fff;
+        }
+        .suggestion-item:hover {
+            background-color: #f1f8ff;
+        }
+        #btnInstaller {
+            display: none;
+            width: 100%;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        .card {
+            background: #fafafa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        button.action-btn {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button.action-btn:hover {
+            background-color: #004085;
         }
     </style>
-    <!-- Inclusion de SheetJS pour lire le fichier Excel pelicans.xlsx directement -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Librairie SheetJS pour lire Excel si besoin côté client -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
 <div class="container">
-    <h2>
-        <span>Stock AINM</span>
-        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <button id="btnInstaller" onclick="installerApp()" style="display:none; background:#ff6600; width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">📲 Installer</button>
-            <button onclick="partagerStock()" style="width:auto; padding:8px 12px; font-size:0.85rem; margin-top:0;">Partager le stock</button>
-        </div>
-    </h2>
+    <h2>Gestion de Stock Terrain</h2>
 
-    <!-- 0. Recherche Pelican / Plan-Repère (Dès le 3e caractère) -->
-    <div class="search-section" style="position: relative;">
-        <h3>0. Recherche Pelican / Plan-Repère</h3>
-        <label>Pelican ou Plan-Repère (Tapez dès le 3e caractère) :</label>
-        <input type="text" id="inputPelican" placeholder="Ex: PEL-01 ou PR-..." autocomplete="off">
+    <!-- Bouton d'installation PWA -->
+    <button id="btnInstaller" onclick="installerApp()">Installer l'application sur l'appareil</button>
+
+    <!-- SECTION RECHERCHE -->
+    <div class="search-group">
+        <label for="inputPelican">Recherche Kit / Pelican / Plan-Repère :</label>
+        <input type="text" id="inputPelican" placeholder="Tapez un code Pelican ou Plan (min 3 caractères)...">
         <div id="suggestionsPelican"></div>
     </div>
 
-    <!-- Fiche Détail Pelican & Composants (Montage complet) -->
-    <div id="fichePelicanDetail"></div>
+    <div class="search-group">
+        <label for="inputSymbole">Recherche par Symbole :</label>
+        <input type="text" id="inputSymbole" placeholder="Tapez le symbole (min 5 chiffres)...">
+        <div id="suggestions"></div>
+    </div>
 
-    <!-- Recherche par Plan -->
-    <div class="search-section">
-        <h3>1. Recherche par Plan</h3>
-        <label>N° de Plan (6 chiffres) :</label>
+    <div class="search-group">
+        <label for="inputPlan">Recherche par Plan :</label>
         <div style="display: flex; gap: 8px;">
-            <input type="tel" id="inputPlan" placeholder="Ex: 123456" style="flex: 1;">
-            <button onclick="rechercherParPlan()" style="margin-top:0; width: auto; padding: 12px 18px;">OK</button>
+            <input type="text" id="inputPlan" placeholder="N° de plan...">
+            <button onclick="rechercherParPlan()" style="padding: 0 15px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍</button>
         </div>
         <div id="listePlanResultats"></div>
     </div>
 
-    <!-- Recherche par Symbole -->
-    <div class="search-section" style="position: relative;">
-        <h3>2. Recherche par Symbole</h3>
-        <label>Symbole (Tapez dès le 5e chiffre) :</label>
-        <input type="tel" id="inputSymbole" placeholder="Ex: 08804001" autocomplete="off">
-        <div id="suggestions"></div>
-    </div>
+    <!-- AFFICHAGE DU KIT PELICAN SÉLECTIONNÉ -->
+    <div id="fichePelicanDetail" class="card" style="display: none;"></div>
 
-    <!-- Fiche Article & Localisation -->
-    <div id="resultat">
-        <h3>Fiche Pièce</h3>
-        <div class="result-flex">
-            <img id="imgPiece" src="" alt="Miniature">
-            <div class="result-infos">
-                <p><strong>Plan :</strong> <span id="resPlan"></span></p>
-                <p><strong>REP :</strong> <span id="resRep"></span></p>
-                <p><strong>Symb :</strong> <span id="resSymbole"></span></p>
-                <p><strong style="color: #0056b3;"><span id="resIntitule"></span></strong></p>
+    <!-- FICHE ARTICLE UNITAIRE & SAISIE DE STOCK -->
+    <div id="resultat" class="card" style="display: none;">
+        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
+            <img id="imgPiece" src="" alt="Miniature" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;">
+            <div>
+                <p style="margin: 0 0 4px 0; font-size: 14px;"><strong>Plan :</strong> <span id="resPlan"></span> | <strong>REP :</strong> <span id="resRep"></span></p>
+                <p style="margin: 0 0 4px 0; font-size: 14px;"><strong>Symbole :</strong> <span id="resSymbole"></span></p>
+                <p style="margin: 0; font-size: 13px; color: #555;" id="resIntitule"></p>
             </div>
         </div>
 
-        <div id="infoStockActuel" style="margin-top: 15px; padding: 12px; border-radius: 6px; display: none; font-size: 0.95rem;"></div>
+        <!-- Emplacements de stock existants -->
+        <div id="infoStockActuel" style="margin-bottom: 12px; padding: 10px; border-radius: 4px; display: none;"></div>
 
-        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eee;">
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
 
-        <h3 style="margin-top: 0;">Emplacement de stockage</h3>
-        <label>Site :</label>
-        <input type="text" id="stockSite" placeholder="Ex: Dépôt Paris">
+        <!-- Formulaire de saisie d'emplacement / quantité -->
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #0056b3;">Enregistrer / Mettre à jour l'emplacement :</h4>
         
-        <label>Bâtiment :</label>
-        <input type="text" id="stockBatiment" placeholder="Ex: Hall B">
-        
-        <label>Rang :</label>
-        <input type="text" id="stockRang" placeholder="Ex: Étagère 4">
-        
-        <label>Quantité :</label>
-        <input type="number" id="stockQuantite" value="1" min="1" pattern="[0-9]*">
-        
-        <button onclick="validerStockage()" style="background: #28a745; margin-top: 15px;">Enregistrer</button>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+            <div style="flex: 1;">
+                <label style="font-size: 12px;">Site :</label>
+                <input type="text" id="stockSite" placeholder="Ex: Depot">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-size: 12px;">Bâtiment :</label>
+                <input type="text" id="stockBatiment" placeholder="Ex: Bât A">
+            </div>
+            <div style="flex: 1;">
+                <label style="font-size: 12px;">Rang :</label>
+                <input type="text" id="stockRang" placeholder="Ex: R3">
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <label style="font-size: 12px;">Quantité à ajouter :</label>
+            <input type="number" id="stockQuantite" value="1" min="1">
+        </div>
+
+        <button class="action-btn" onclick="validerStockage()">Valider et Enregistrer</button>
     </div>
+
 </div>
 
+<!-- Script principal -->
 <script src="script.js"></script>
 </body>
 </html>
