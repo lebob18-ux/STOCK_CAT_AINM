@@ -1,5 +1,7 @@
-// URL de votre dépôt central de miniatures GitHub
-const GITHUB_MINIATURES_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
+// URL de ton dépôt central GitHub structuré avec le dossier IMG_JPG
+const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
+const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+
 let deferredPrompt = null;
 
 window.addEventListener('beforeinstallprompt', (e) => {
@@ -37,11 +39,11 @@ window.addEventListener('DOMContentLoaded', () => {
             .catch(err => console.log('Erreur Service Worker :', err));
     }
 
-    // Chargement du mapping, du stock (local) et de PELICAN.xlsx
+    // Chargement du mapping, du stock (local) et de PELICAN.xlsx depuis MIGNATURE_K1
     Promise.all([
-        fetch(GITHUB_MINIATURES_URL + 'mapping.json').then(res => res.json()),
+        fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde')),
-        fetch('./PELICAN.xlsx').then(res => res.arrayBuffer()).catch(() => null)
+        fetch(GITHUB_BASE_URL + 'PELICAN.xlsx').then(res => res.arrayBuffer()).catch(() => null)
     ])
     .then(([catalogueData, stockSauvegarde, pelicanBuffer]) => {
         catalogueGlobal = catalogueData;
@@ -59,9 +61,9 @@ window.addEventListener('DOMContentLoaded', () => {
             let workbook = XLSX.read(data, {type: 'array'});
             let firstSheetName = workbook.SheetNames[0];
             pelicansData = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName]);
-            console.log("Base PELICAN.xlsx chargée :", pelicansData.length, "lignes.");
+            console.log("Base PELICAN.xlsx chargée depuis GitHub :", pelicansData.length, "lignes.");
         } else {
-            console.log("Fichier PELICAN.xlsx introuvable à la racine.");
+            console.log("Fichier PELICAN.xlsx introuvable sur le dépôt GitHub.");
         }
     })
     .catch(err => console.error("Erreur de chargement des fichiers :", err));
@@ -168,12 +170,18 @@ function afficherDetailsPelican(codePelican) {
     
     document.getElementById('resultat').style.display = 'none';
 
+    let imgKitUrl = `${GITHUB_IMG_URL}${codePelican}.jpg`;
+
     let html = `
-        <h3 style="color: #0056b3; margin-top:0;">Kit / Montage : ${infoPelican["pelican"]}</h3>
-        <p><strong>Plan :</strong> ${infoPelican["plan"]}</p>
-        <p><strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
+            <img src="${imgKitUrl}" onerror="this.src='https://via.placeholder.com/100x70?text=Kit'" style="width: 90px; height: 65px; object-fit: cover; border-radius: 6px; border: 1px solid #0056b3;">
+            <div>
+                <h3 style="color: #0056b3; margin:0;">Kit / Montage : ${infoPelican["pelican"]}</h3>
+                <p style="margin: 2px 0; font-size: 13px;"><strong>Plan :</strong> ${infoPelican["plan"]} | <strong>Intitulé :</strong> ${infoPelican["int plan"]}</p>
+            </div>
+        </div>
         <hr style="margin: 10px 0; border: 0; border-top: 1px solid #ddd;">
-        <h4 style="margin: 8px 0;">Composition (Symboles requis) :</h4>
+        <h4 style="margin: 8px 0; font-size: 14px;">Composition (Symboles requis) :</h4>
         <div style="display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto;">
     `;
 
@@ -181,7 +189,7 @@ function afficherDetailsPelican(codePelican) {
         let sy = String(comp["SYMBOLE_ECLATE"] || "").trim();
         let qteRequise = parseInt(comp["QUANTITE"]) || 1;
         let libSy = comp["DESIGNATION"] || "";
-        let imgUrl = `${GITHUB_MINIATURES_URL}${sy}.jpg`;
+        let imgUrl = `${GITHUB_IMG_URL}${sy}.jpg`;
 
         let stockTrouve = stockGlobal
             .filter(s => String(s.symbole || s.Symbole || "").trim() === sy)
@@ -236,12 +244,12 @@ function rechercherParPlan() {
         html += `<div style="display: flex; flex-direction: column; gap: 10px; max-height: 350px; overflow-y: auto;">`;
 
         correspondances.forEach(article => {
-            let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
+            let imgUrl = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
             let articleJson = JSON.stringify(article).replace(/"/g, '&quot;');
             
             html += `
                 <div class="suggestion-item" onclick='selectionnerArticlePlan(${articleJson})' style="cursor: pointer; border: 1px solid #ddd; padding: 8px; border-radius: 6px; display: flex; align-items: center; gap: 12px; background: white;">
-                    <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
+                    <img src="${imgUrl}" style="width: 70px; height: 50px; object-fit: cover; border-radius: 4px;" onerror="this.src='https://via.placeholder.com/70x50?text=No'">
                     <div style="font-size: 14px;">
                         <strong style="font-size: 15px; color: #0056b3;">REP : ${article.rep}</strong> | Symbole : ${article.symbole}<br>
                         <small style="color: #555; display: inline-block; margin-top: 4px;">${article.intitule}</small>
@@ -276,11 +284,11 @@ function afficherSuggestionsSymbole(prefixe) {
     matches.forEach(article => {
         let div = document.createElement('div');
         div.className = 'suggestion-item';
-        let imgUrl = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
+        let imgUrl = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
 
         div.innerHTML = `
-            <img src="${imgUrl}" onerror="this.src='https://via.placeholder.com/120x90?text=No'">
-            <div style="font-size: 14px;">
+            <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;" onerror="this.src='https://via.placeholder.com/60x45?text=No'">
+            <div style="font-size: 14px; margin-left: 10px;">
                 <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan} / REP: ${article.rep})<br>
                 <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
             </div>
@@ -309,7 +317,7 @@ function afficherFiche(article) {
     document.getElementById('resIntitule').textContent = article.intitule;
 
     let img = document.getElementById('imgPiece');
-    img.src = `${GITHUB_MINIATURES_URL}${article.symbole}.jpg`;
+    img.src = `${GITHUB_IMG_URL}${article.symbole}.jpg`;
     img.onerror = () => img.src = 'https://via.placeholder.com/160x120?text=Introuvable';
 
     let existants = stockGlobal.filter(item => 
@@ -412,10 +420,11 @@ function validerStockage() {
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
+    // Réinitialisation propre
     document.getElementById('resultat').style.display = 'none';
     document.getElementById('inputPlan').value = "";
     document.getElementById('inputSymbole').value = "";
-    document.getElementById('inputPelican.value') = "";
+    document.getElementById('inputPelican').value = ""; // Correction de la syntaxe ici
     document.getElementById('listePlanResultats').innerHTML = "";
     document.getElementById('suggestions').innerHTML = "";
     document.getElementById('suggestionsPelican').innerHTML = "";
