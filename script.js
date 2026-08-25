@@ -6,12 +6,14 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    document.getElementById('btnInstaller').style.display = 'block';
+    let btn = document.getElementById('btnInstaller');
+    if (btn) btn.style.display = 'block';
 });
 
 window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    document.getElementById('btnInstaller').style.display = 'none';
+    let btn = document.getElementById('btnInstaller');
+    if (btn) btn.style.display = 'none';
 });
 
 function installerApp() {
@@ -19,7 +21,8 @@ function installerApp() {
     deferredPrompt.prompt();
     deferredPrompt.userChoice.then((result) => {
         if (result.outcome === 'accepted') {
-            document.getElementById('btnInstaller').style.display = 'none';
+            let btn = document.getElementById('btnInstaller');
+            if (btn) btn.style.display = 'none';
         }
         deferredPrompt = null;
     });
@@ -85,10 +88,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputPlan = document.getElementById('inputPlan');
     if (inputPlan) {
         inputPlan.addEventListener('input', () => {
-            // Si on modifie le plan, on vide le symbole et on cache les anciens résultats
-            document.getElementById('inputSymbole').value = '';
-            document.getElementById('suggestions').innerHTML = '';
-            document.getElementById('resultat').style.display = 'none';
+            let saisieSym = document.getElementById('inputSymbole');
+            if (saisieSym) saisieSym.value = '';
+            let sug = document.getElementById('suggestions');
+            if (sug) sug.innerHTML = '';
+            let res = document.getElementById('resultat');
+            if (res) res.style.display = 'none';
             afficherSuggestionsPlan();
         });
     }
@@ -96,7 +101,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const inputRep = document.getElementById('inputRep');
     if (inputRep) {
         inputRep.addEventListener('input', () => {
-            document.getElementById('resultat').style.display = 'none';
+            let res = document.getElementById('resultat');
+            if (res) res.style.display = 'none';
             afficherSuggestionsPlan();
         });
     }
@@ -108,13 +114,16 @@ window.addEventListener('DOMContentLoaded', () => {
             if (valeur.length > 0) {
                 if (inputPlan) inputPlan.value = '';
                 if (inputRep) inputRep.value = '';
-                document.getElementById('listePlanResultats').innerHTML = '';
-                document.getElementById('resultat').style.display = 'none';
+                let listeRes = document.getElementById('listePlanResultats');
+                if (listeRes) listeRes.innerHTML = '';
+                let res = document.getElementById('resultat');
+                if (res) res.style.display = 'none';
             }
             if (valeur.length >= 3) {
                 afficherSuggestionsSymbole(valeur);
             } else {
-                document.getElementById('suggestions').innerHTML = '';
+                let sug = document.getElementById('suggestions');
+                if (sug) sug.innerHTML = '';
             }
         });
     }
@@ -139,16 +148,17 @@ function afficherSuggestionsPlan() {
     if (!recherchePlan && !rechercheRep) return;
 
     let matches = cataloguePlanGlobal.filter(item => {
-        let p = String(item.plan || "").toLowerCase().trim();
-        let r = String(item.rep || "").toLowerCase().trim();
+        let p = String(item.plan || "").toLowerCase().trim().replace(/^0+/, '');
+        let r = String(item.rep || "").toLowerCase().trim().replace(/^0+/, '');
+        let cleanRechPlan = recherchePlan.replace(/^0+/, '');
+        let cleanRechRep = rechercheRep.replace(/^0+/, '');
 
-        let matchPlan = recherchePlan === "" || p.includes(recherchePlan);
-        let matchRep = rechercheRep === "" || r.includes(rechercheRep);
+        let matchPlan = recherchePlan === "" || p.includes(cleanRechPlan) || String(item.plan || "").toLowerCase().trim().includes(recherchePlan);
+        let matchRep = rechercheRep === "" || r.includes(cleanRechRep) || String(item.rep || "").toLowerCase().trim().includes(rechercheRep);
 
         return matchPlan && matchRep;
     });
 
-    // Utilisation d'une clé unique Plan-Repère pour éviter les doublons dans la liste
     let resultatsUniques = [...new Map(matches.map(item => [item.plan + "_" + item.rep, item])).values()]
         .slice(0, 10);
 
@@ -175,7 +185,8 @@ function afficherSuggestionsPlan() {
 function selectionnerPlanDansListe(article) {
     if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = article.plan;
     if (document.getElementById('inputRep')) document.getElementById('inputRep').value = article.rep || '';
-    document.getElementById('listePlanResultats').innerHTML = '';
+    let listeRes = document.getElementById('listePlanResultats');
+    if (listeRes) listeRes.innerHTML = '';
     
     afficherFiche(article);
 }
@@ -183,6 +194,7 @@ function selectionnerPlanDansListe(article) {
 // --- RECHERCHE PAR SYMBOLE ---
 function afficherSuggestionsSymbole(prefixe) {
     let container = document.getElementById('suggestions');
+    if (!container) return;
     container.innerHTML = '';
     
     let matches = catalogueSymboleGlobal.filter(item => String(item.symbole || "").startsWith(prefixe));
@@ -220,9 +232,12 @@ function afficherSuggestionsSymbole(prefixe) {
 // --- AFFICHAGE DE LA FICHE ---
 function afficherFiche(article) {
     articleCourant = article;
-    document.getElementById('resPlan').textContent = article.plan || '-';
-    document.getElementById('resRep').textContent = article.rep || '-';
-    document.getElementById('resIntitule').textContent = article.intitule || '-';
+    let resPlan = document.getElementById('resPlan');
+    let resRep = document.getElementById('resRep');
+    let resIntitule = document.getElementById('resIntitule');
+    if (resPlan) resPlan.textContent = article.plan || '-';
+    if (resRep) resRep.textContent = article.rep || '-';
+    if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
     // 1. Récupérer TOUS les composants/symboles associés à ce plan et ce repère
     let composantsPlan = cataloguePlanGlobal.filter(item => {
@@ -231,7 +246,6 @@ function afficherFiche(article) {
         return matchPlan && matchRep;
     });
     
-    // Si aucun composant trouvé avec le repère strict, on se replie sur le plan global
     if (composantsPlan.length === 0) {
         composantsPlan = cataloguePlanGlobal.filter(item => String(item.plan || "").trim() === String(article.plan || "").trim());
     }
@@ -256,7 +270,7 @@ function afficherFiche(article) {
         conteneurComposants.innerHTML = htmlComposants;
     }
 
-    // 2. Gestion de l'image principale du Plan : Format PLAN-REP.jpg sur 6 chiffres (ou Symbole si recherche SY directe)
+    // 2. Gestion de l'image principale du Plan
     let img = document.getElementById('imgPiece');
     let nomImage = "";
     let saisieSymboleActif = document.getElementById('inputSymbole') ? document.getElementById('inputSymbole').value.trim() : "";
@@ -269,8 +283,10 @@ function afficherFiche(article) {
         nomImage = `${plan6}-${rep6}`;
     }
 
-    img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
-    img.onerror = () => img.src = 'https://via.placeholder.com/320x240?text=Image+Introuvable';
+    if (img) {
+        img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
+        img.onerror = () => img.src = 'https://via.placeholder.com/320x240?text=Image+Introuvable';
+    }
 
     // 3. Gestion de l'affichage du stock existant
     let existants = stockGlobal.filter(item => {
@@ -280,60 +296,63 @@ function afficherFiche(article) {
     });
 
     let divStock = document.getElementById('infoStockActuel');
-    
-    if (existants.length > 0) {
-        divStock.style.display = 'block';
-        divStock.style.backgroundColor = '#d4edda';
-        divStock.style.border = '1px solid #c3e6cb';
-        divStock.style.color = '#155724';
-        
-        let htmlStock = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>
-        <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>
-        <div style="display: flex; flex-direction: column; gap: 6px;">`;
-        
-        existants.forEach((ex) => {
-            let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
-            htmlStock += `
-                <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
-                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
-                </div>
-            `;
-        });
-        htmlStock += `</div>`;
-        divStock.innerHTML = htmlStock;
-    } else {
-        divStock.style.display = 'block';
-        divStock.style.backgroundColor = '#fff3cd';
-        divStock.style.border = '1px solid #ffeeba';
-        divStock.style.color = '#856404';
-        divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Saisissez l'emplacement pour créer le stock.`;
+    if (divStock) {
+        if (existants.length > 0) {
+            divStock.style.display = 'block';
+            divStock.style.backgroundColor = '#d4edda';
+            divStock.style.border = '1px solid #c3e6cb';
+            divStock.style.color = '#155724';
+            
+            let htmlStock = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>
+            <p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>
+            <div style="display: flex; flex-direction: column; gap: 6px;">`;
+            
+            existants.forEach((ex) => {
+                let exJson = JSON.stringify(ex).replace(/"/g, '&quot;');
+                htmlStock += `
+                    <div onclick='selectionnerEmplacementExistant(${exJson})' style="cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
+                        <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
+                    </div>
+                `;
+            });
+            htmlStock += `</div>`;
+            divStock.innerHTML = htmlStock;
+        } else {
+            divStock.style.display = 'block';
+            divStock.style.backgroundColor = '#fff3cd';
+            divStock.style.border = '1px solid #ffeeba';
+            divStock.style.color = '#856404';
+            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Saisissez l'emplacement pour créer le stock.`;
+        }
     }
 
-    document.getElementById('stockSite').value = "";
-    document.getElementById('stockBatiment').value = "";
-    document.getElementById('stockRang').value = "";
-    document.getElementById('stockQuantite').value = "1";
-    document.getElementById('mouvementType').value = "ENTREE";
-    document.getElementById('resultat').style.display = 'block';
+    if (document.getElementById('stockSite')) document.getElementById('stockSite').value = "";
+    if (document.getElementById('stockBatiment')) document.getElementById('stockBatiment').value = "";
+    if (document.getElementById('stockRang')) document.getElementById('stockRang').value = "";
+    if (document.getElementById('stockQuantite')) document.getElementById('stockQuantite').value = "1";
+    if (document.getElementById('mouvementType')) document.getElementById('mouvementType').value = "ENTREE";
+    let resDiv = document.getElementById('resultat');
+    if (resDiv) resDiv.style.display = 'block';
 }
 
 function selectionnerEmplacementExistant(existant) {
-    document.getElementById('stockSite').value = existant.site || "";
-    document.getElementById('stockBatiment').value = existant.batiment || "";
-    document.getElementById('stockRang').value = existant.rang || "";
-    document.getElementById('stockQuantite').focus();
+    if (document.getElementById('stockSite')) document.getElementById('stockSite').value = existant.site || "";
+    if (document.getElementById('stockBatiment')) document.getElementById('stockBatiment').value = existant.batiment || "";
+    if (document.getElementById('stockRang')) document.getElementById('stockRang').value = existant.rang || "";
+    let qteInput = document.getElementById('stockQuantite');
+    if (qteInput) qteInput.focus();
 }
 
 // --- MOUVEMENT DE STOCK ---
 function validerMouvementStock() {
     if (!articleCourant) return;
 
-    let typeMvt = document.getElementById('mouvementType').value;
-    let site = document.getElementById('stockSite').value.trim();
-    let batiment = document.getElementById('stockBatiment').value.trim();
-    let rang = document.getElementById('stockRang').value.trim();
-    let qteDemandee = parseInt(document.getElementById('stockQuantite').value) || 0;
+    let typeMvt = document.getElementById('mouvementType') ? document.getElementById('mouvementType').value : 'ENTREE';
+    let site = document.getElementById('stockSite') ? document.getElementById('stockSite').value.trim() : '';
+    let batiment = document.getElementById('stockBatiment') ? document.getElementById('stockBatiment').value.trim() : '';
+    let rang = document.getElementById('stockRang') ? document.getElementById('stockRang').value.trim() : '';
+    let qteDemandee = parseInt(document.getElementById('stockQuantite') ? document.getElementById('stockQuantite').value : 1) || 0;
 
     if (qteDemandee <= 0) {
         alert("⚠️ Quantité invalide. Veuillez saisir un nombre supérieur à 0.");
@@ -357,10 +376,12 @@ function validerMouvementStock() {
         }
 
         localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-        document.getElementById('resultat').style.display = 'none';
+        let resDiv = document.getElementById('resultat');
+        if (resDiv) resDiv.style.display = 'none';
         if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = "";
         if (document.getElementById('inputRep')) document.getElementById('inputRep').value = "";
-        document.getElementById('listePlanResultats').innerHTML = "";
+        let listeRes = document.getElementById('listePlanResultats');
+        if (listeRes) listeRes.innerHTML = "";
         articleCourant = null;
         alert("✅ Sortie globale du montage effectuée avec succès !");
         return;
@@ -410,10 +431,12 @@ function validerMouvementStock() {
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
 
-    document.getElementById('resultat').style.display = 'none';
+    let resDiv = document.getElementById('resultat');
+    if (resDiv) resDiv.style.display = 'none';
     if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = "";
     if (document.getElementById('inputRep')) document.getElementById('inputRep').value = "";
-    document.getElementById('listePlanResultats').innerHTML = "";
+    let listeRes = document.getElementById('listePlanResultats');
+    if (listeRes) listeRes.innerHTML = "";
     articleCourant = null;
 
     alert(typeMvt === 'ENTREE' ? "✅ Entrée de stock validée !" : "✅ Sortie de stock validée !");
