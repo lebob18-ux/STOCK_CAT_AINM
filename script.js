@@ -40,7 +40,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Chargement des données et du stock local
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
+ fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
             .then(res => {
                 if (!res.ok) throw new Error("Fichier PELICAN1.xlsx introuvable sur GitHub");
                 return res.arrayBuffer();
@@ -50,7 +50,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 let premiereFeuille = workbook.SheetNames[0];
                 let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[premiereFeuille]);
                 
-                return donneesBrutes.map(row => {
+                // On filtre pour ignorer totalement les lignes où le plan est vide ou inexistant
+                let donneesValides = donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "");
+
+                return donneesValides.map(row => {
                     let rawRep = String(row.REP || "").trim();
                     let cleanRep = (rawRep === "" || rawRep === "******") ? "000000" : rawRep;
 
@@ -63,7 +66,7 @@ window.addEventListener('DOMContentLoaded', () => {
                         quantite: parseInt(row.QUANTITE) || 1,
                         designation: String(row.DESIGNATION || "").trim()
                     };
-                }).filter(item => item.plan !== "");
+                });
             })
             .catch(err => {
                 console.error("Erreur de chargement de PELICAN1.xlsx :", err);
