@@ -37,7 +37,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Chargement des deux sources distinctes et du stock local
     Promise.all([
-        // 1. Chargement de PELICAN.xlsx pour les plans
+// 1. Chargement de PELICAN.xlsx pour les plans
         fetch(GITHUB_BASE_URL + 'PELICAN.xlsx')
             .then(res => res.arrayBuffer())
             .then(buffer => {
@@ -46,12 +46,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[premiereFeuille]);
                 
                 return donneesBrutes.map(row => ({
-                    plan: String(row.plan || row.Plan || "").trim(),
-                    rep: String(row.rep || row.Rep || "").trim(),
-                    symbole: String(row.symbole || row.Symbole || "").trim(),
-                    intitule: String(row.intitule || row.Intitule || "").trim(),
-                    pelican: String(row.pelican || row.Pelican || row.PELICAN || "").trim()
-                }));
+                    pelican: String(row.pelican || "").trim(),
+                    plan: String(row.plan || "").trim(),
+                    intPlan: String(row['int plan'] || "").trim(),
+                    symboleEclate: String(row.SYMBOLE_ECLATE || "").trim(),
+                    quantite: parseInt(row.QUANTITE) || 1,
+                    designation: String(row.DESIGNATION || "").trim()
+                })).filter(item => item.plan !== "");
             })
             .catch(err => {
                 console.error("Erreur de chargement de PELICAN.xlsx :", err);
