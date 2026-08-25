@@ -141,9 +141,17 @@
 
         <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
 
-        <!-- Formulaire de saisie d'emplacement / quantité -->
-        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #0056b3;">Enregistrer / Mettre à jour l'emplacement :</h4>
+<!-- Formulaire de mouvement de stock (Entrée / Sortie) -->
+        <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #0056b3;">Mouvement de Stock :</h4>
         
+        <div style="margin-bottom: 8px;">
+            <label style="font-size: 12px;">Type de mouvement :</label>
+            <select id="mouvementType" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: bold;">
+                <option value="ENTREE">➕ Entrée (Ajouter au stock)</option>
+                <option value="SORTIE">➖ Sortie (Retirer du stock)</option>
+            </select>
+        </div>
+
         <div style="display: flex; gap: 8px; margin-bottom: 8px;">
             <div style="flex: 1;">
                 <label style="font-size: 12px;">Site :</label>
@@ -160,12 +168,11 @@
         </div>
 
         <div style="margin-bottom: 10px;">
-            <label style="font-size: 12px;">Quantité à ajouter :</label>
+            <label style="font-size: 12px;">Quantité :</label>
             <input type="number" id="stockQuantite" value="1" min="1">
         </div>
 
-        <button class="action-btn" onclick="validerStockage()">Valider et Enregistrer</button>
-    </div>
+        <button class="action-btn" onclick="validerMouvementStock()">Valider le mouvement</button>
 
 </div>
 
