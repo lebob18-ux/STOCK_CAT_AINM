@@ -47,15 +47,21 @@ window.addEventListener('DOMContentLoaded', () => {
                 let premiereFeuille = workbook.SheetNames[0];
                 let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[premiereFeuille]);
                 
-                return donneesBrutes.map(row => ({
-                    pelican: String(row.pelican || "").trim(),
-                    plan: String(row.PLAN || "").trim(),
-                    rep: String(row.REP || "").trim(),
-                    intitule: String(row['int plan'] || "").trim(),
-                    symbole: String(row.SYMBOLE_ECLATE || "").trim(),
-                    quantite: parseInt(row.QUANTITE) || 1,
-                    designation: String(row.DESIGNATION || "").trim()
-                })).filter(item => item.plan !== "");
+                return donneesBrutes.map(row => {
+                    let rawRep = String(row.REP || "").trim();
+                    // Nettoyage automatique des repères spéciaux ou vides en "000000"
+                    let cleanRep = (rawRep === "" || rawRep.includes("*")) ? "000000" : rawRep;
+
+                    return {
+                        pelican: String(row.pelican || "").trim(),
+                        plan: String(row.PLAN || "").trim(),
+                        rep: cleanRep,
+                        intitule: String(row['int plan'] || "").trim(),
+                        symbole: String(row.SYMBOLE_ECLATE || "").trim(),
+                        quantite: parseInt(row.QUANTITE) || 1,
+                        designation: String(row.DESIGNATION || "").trim()
+                    };
+                }).filter(item => item.plan !== "");
             })
             .catch(err => {
                 console.error("Erreur de chargement de PELICAN.xlsx :", err);
@@ -171,9 +177,10 @@ function afficherSuggestionsPlan() {
     
     resultatsUniques.forEach(article => {
         let artJson = JSON.stringify(article).replace(/"/g, '&quot;');
+        let displayRep = (article.rep === "000000") ? "Sans repère" : article.rep;
         html += `
             <div onclick='selectionnerPlanDansListe(${artJson})' style="padding: 10px 12px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;" onmouseover="this.style.background='#f1f8ff'" onmouseout="this.style.background='white'">
-                <strong>Plan : ${article.plan}</strong> | <strong>Rep : ${article.rep || 'Aucun'}</strong><br>
+                <strong>Plan : ${article.plan}</strong> | <strong>Rep : ${displayRep}</strong><br>
                 <small style="color: #555;">${article.intitule || ''}</small>
             </div>
         `;
@@ -184,7 +191,7 @@ function afficherSuggestionsPlan() {
 
 function selectionnerPlanDansListe(article) {
     if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = article.plan;
-    if (document.getElementById('inputRep')) document.getElementById('inputRep').value = article.rep || '';
+    if (document.getElementById('inputRep')) document.getElementById('inputRep').value = (article.rep === "000000") ? "" : article.rep;
     let listeRes = document.getElementById('listePlanResultats');
     if (listeRes) listeRes.innerHTML = '';
     
@@ -220,7 +227,7 @@ function afficherSuggestionsSymbole(prefixe) {
         div.addEventListener('click', () => {
             document.getElementById('inputSymbole').value = article.symbole;
             if (document.getElementById('inputPlan')) document.getElementById('inputPlan').value = article.plan;
-            if (document.getElementById('inputRep')) document.getElementById('inputRep').value = article.rep || '';
+            if (document.getElementById('inputRep')) document.getElementById('inputRep').value = (article.rep === "000000") ? "" : (article.rep || '');
             document.getElementById('suggestions').innerHTML = '';
             afficherFiche(article);
         });
@@ -236,7 +243,7 @@ function afficherFiche(article) {
     let resRep = document.getElementById('resRep');
     let resIntitule = document.getElementById('resIntitule');
     if (resPlan) resPlan.textContent = article.plan || '-';
-    if (resRep) resRep.textContent = article.rep || '-';
+    if (resRep) resRep.textContent = (article.rep === "000000") ? "Sans repère" : (article.rep || '-');
     if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
     let composantsPlan = cataloguePlanGlobal.filter(item => {
@@ -277,7 +284,8 @@ function afficherFiche(article) {
         nomImage = saisieSymboleActif;
     } else if (article.plan) {
         let plan6 = String(article.plan).trim().padStart(6, '0');
-        let rep6 = article.rep ? String(article.rep).trim().padStart(6, '0') : "000000";
+        let repClean = (article.rep && article.rep !== "") ? article.rep : "000000";
+        let rep6 = String(repClean).trim().padStart(6, '0');
         nomImage = `${plan6}-${rep6}`;
     }
 
@@ -449,7 +457,7 @@ function exporterStockCSV() {
     stockGlobal.forEach(item => {
         let ligne = [
             item.plan || "",
-            item.rep || "",
+            item.rep === "000000" ? "" : (item.rep || ""),
             item.symbole || "",
             `"${(item.intitule || "").replace(/"/g, '""')}"`,
             item.site || "",
