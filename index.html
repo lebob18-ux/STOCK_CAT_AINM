@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion de Stock - Terrain</title>
-    <!-- Lien vers le fichier de style si tu en as un, ou styles intégrés -->
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -28,6 +27,7 @@
         }
         .search-group {
             margin-bottom: 15px;
+            position: relative;
         }
         label {
             display: block;
@@ -35,7 +35,7 @@
             margin-bottom: 5px;
             font-size: 14px;
         }
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], select {
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
@@ -88,44 +88,66 @@
         button.action-btn:hover {
             background-color: #004085;
         }
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .toolbar button {
+            flex: 1;
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .toolbar button:hover { background: #5a6268; }
     </style>
-    <!-- Librairie SheetJS pour lire Excel si besoin côté client -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
 <div class="container">
     <h2>Gestion de Stock Terrain</h2>
 
-    <!-- Bouton d'installation PWA -->
+    <!-- Bouton PWA (Installation) -->
     <button id="btnInstaller" onclick="installerApp()">Installer l'application sur l'appareil</button>
 
-    <!-- SECTION RECHERCHE -->
-    <div class="search-group">
-        <label for="inputPelican">Recherche Kit / Pelican / Plan-Repère :</label>
-        <input type="text" id="inputPelican" placeholder="Tapez un code Pelican ou Plan (min 3 caractères)...">
-        <div id="suggestionsPelican"></div>
+    <!-- BARRE D'OUTILS (Import / Export Stock) -->
+    <div class="toolbar">
+        <button onclick="exporterStockCSV()">📤 Exporter Stock (CSV)</button>
+        <button onclick="document.getElementById('inputImportStock').click()">📥 Importer Stock</button>
+        <input type="file" id="inputImportStock" style="display:none" accept=".json,.csv" onchange="importerStock(event)">
     </div>
 
+    <!-- RECHERCHE PAR PLAN + REPÈRE (Écran coupé en 2 avec suggestions dynamiques sur le plan) -->
     <div class="search-group">
-        <label for="inputSymbole">Recherche par Symbole :</label>
-        <input type="text" id="inputSymbole" placeholder="Tapez le symbole (min 5 chiffres)...">
+        <label>Recherche par Plan et Repère :</label>
+        <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+            <div style="flex: 1; position: relative;">
+                <input type="text" id="inputPlan" placeholder="Plan (ex: 123)" maxlength="6" autocomplete="off">
+            </div>
+            <div style="flex: 1;">
+                <input type="text" id="inputRep" placeholder="Repère (ex: 000001)" maxlength="6" autocomplete="off">
+            </div>
+        </div>
+        <!-- Conteneur des suggestions automatiques du plan -->
+        <div id="listePlanResultats"></div>
+        
+        <button class="action-btn" onclick="rechercherPlanRepere()">🔍 Rechercher Pièce</button>
+    </div>
+
+    <!-- RECHERCHE ALTERNATIVE PAR SYMBOLE -->
+    <div class="search-group" style="margin-top: 15px;">
+        <label for="inputSymbole">Ou Recherche par Symbole :</label>
+        <input type="text" id="inputSymbole" placeholder="Tapez le symbole (min 5 caractères)..." autocomplete="off">
         <div id="suggestions"></div>
     </div>
 
-    <div class="search-group">
-        <label for="inputPlan">Recherche par Plan :</label>
-        <div style="display: flex; gap: 8px;">
-            <input type="text" id="inputPlan" placeholder="N° de plan...">
-            <button onclick="rechercherParPlan()" style="padding: 0 15px; background: #0056b3; color: white; border: none; border-radius: 4px; cursor: pointer;">🔍</button>
-        </div>
-        <div id="listePlanResultats"></div>
-    </div>
-
-    <!-- AFFICHAGE DU KIT PELICAN SÉLECTIONNÉ -->
-    <div id="fichePelicanDetail" class="card" style="display: none;"></div>
-
-    <!-- FICHE ARTICLE UNITAIRE & SAISIE DE STOCK -->
+    <!-- FICHE ARTICLE & MOUVEMENT DE STOCK (Entrée / Sortie) -->
     <div id="resultat" class="card" style="display: none;">
         <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
             <img id="imgPiece" src="" alt="Miniature" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;">
@@ -136,17 +158,15 @@
             </div>
         </div>
 
-        <!-- Emplacements de stock existants -->
         <div id="infoStockActuel" style="margin-bottom: 12px; padding: 10px; border-radius: 4px; display: none;"></div>
 
         <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
 
-<!-- Formulaire de mouvement de stock (Entrée / Sortie) -->
         <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #0056b3;">Mouvement de Stock :</h4>
         
         <div style="margin-bottom: 8px;">
             <label style="font-size: 12px;">Type de mouvement :</label>
-            <select id="mouvementType" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; font-weight: bold;">
+            <select id="mouvementType">
                 <option value="ENTREE">➕ Entrée (Ajouter au stock)</option>
                 <option value="SORTIE">➖ Sortie (Retirer du stock)</option>
             </select>
@@ -173,6 +193,7 @@
         </div>
 
         <button class="action-btn" onclick="validerMouvementStock()">Valider le mouvement</button>
+    </div>
 
 </div>
 
