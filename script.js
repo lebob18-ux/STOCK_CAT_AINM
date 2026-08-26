@@ -1,4 +1,4 @@
-const VERSION_APP = "rectif liste sy";
+const VERSION_APP = "v2.9-LAYOUT-SY-PLAN";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -14,7 +14,7 @@ let cataloguePlanGlobal = [];
 let catalogueSymboleGlobal = [];
 let stockGlobal = [];
 let articleCourant = null;
-let contexteMouvement = null; // Stocke l'élément en cours de modification (Plan-Rep ou SY spécifique)
+let contexteMouvement = null;
 
 function masquerLoader() {
     let loader = document.getElementById('loaderGlobal');
@@ -32,6 +32,12 @@ window.addEventListener('DOMContentLoaded', () => {
     bannerVersion.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; background: #28a745; color: white; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; z-index: 99999;";
     bannerVersion.innerHTML = `TEST ACTIF : ${VERSION_APP} <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; margin-left: 10px; cursor: pointer;" onclick="this.parentElement.remove()">Fermer [X]</span>`;
     document.body.prepend(bannerVersion);
+
+    // 🛠️ Masquer le champ repère s'il existe dans le DOM
+    let inputRep = document.getElementById('inputRep');
+    if (inputRep && inputRep.parentElement) {
+        inputRep.parentElement.style.display = 'none';
+    }
 
     Promise.all([
         fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx').then(res => res.arrayBuffer()).then(buffer => {
@@ -57,22 +63,31 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     });
 
-    // 🛡️ SÉCURITÉ SUPPLÉMENTAIRE : Force la fermeture du sablier après 4 secondes max quoiqu'il arrive
     setTimeout(() => {
         masquerLoader();
     }, 4000);
 
-    // Écouteurs de recherche Plan + Repère
-    document.getElementById('inputPlan')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
-    document.getElementById('inputRep')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
+    // Écouteur de recherche Plan (gère aussi le filtrage global)
+    document.getElementById('inputPlan')?.addEventListener('input', () => { 
+        // Si l'utilisateur tape dans Plan, on vide le champ Symbole pour éviter les conflits
+        let inputSym = document.getElementById('inputSymbole');
+        if (inputSym && document.activeElement === inputSymbebale && inputSym.value) {
+            inputSym.value = '';
+        }
+        afficherSuggestionsPlan(); 
+    });
 
-    // Écouteur de recherche par Symbole (connecté au mapping.json)
+    // Écouteur de recherche par Symbole (exclusivement basé sur mapping.json)
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
         if (!container) return;
         container.innerHTML = '';
         if (val.length < 1) return;
+
+        // Si l'utilisateur tape un symbole, on vide le champ Plan
+        let inputPln = document.getElementById('inputPlan');
+        if (inputPln) inputPln.value = '';
 
         let matches = catalogueSymboleGlobal.filter(item => 
             String(item.symbole || "").toLowerCase().includes(val) || 
@@ -96,6 +111,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('inputSymbole').value = symItem.symbole;
                 container.innerHTML = '';
 
+                // Vidage automatique de l'autre champ de saisie
+                let inputPln = document.getElementById('inputPlan');
+                if (inputPln) inputPln.value = '';
+
                 let correspondancePlan = cataloguePlanGlobal.find(p => 
                     String(p.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase()
                 );
@@ -103,7 +122,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 if (correspondancePlan) {
                     afficherFiche(correspondancePlan);
                 } else {
-                    alert("Symbole trouvé dans le mapping, mais aucun plan associé dans PELICAN1.");
+                    afficherFicheSymboleSeul(symItem);
                 }
             });
             wrapper.appendChild(div);
@@ -117,15 +136,11 @@ function afficherSuggestionsPlan() {
     if (!container) return;
     container.innerHTML = '';
     let recherchePlan = document.getElementById('inputPlan').value.toLowerCase().trim();
-    let rechercheRep = document.getElementById('inputRep').value.toLowerCase().trim();
-    if (!recherchePlan && !rechercheRep) return;
+    if (!recherchePlan) return;
 
     let matches = cataloguePlanGlobal.filter(item => {
         let p = String(item.plan || "").toLowerCase().trim().replace(/^0+/, '');
-        let r = String(item.rep || "").toLowerCase().trim().replace(/^0+/, '');
-        let matchPlan = recherchePlan === "" || p.includes(recherchePlan.replace(/^0+/, ''));
-        let matchRep = rechercheRep === "" || r.includes(rechercheRep.replace(/^0+/, ''));
-        return matchPlan && matchRep;
+        return p.includes(recherchePlan.replace(/^0+/, ''));
     });
 
     let resultatsUniques = [...new Map(matches.map(item => [item.plan + "_" + item.rep, item])).values()].slice(0, 10);
@@ -142,7 +157,8 @@ function afficherSuggestionsPlan() {
         div.innerHTML = `<strong>Plan : ${article.plan}</strong> | Rep : ${article.rep === "000000" ? "Sans repère" : article.rep}<br><small>${article.intitule}</small>`;
         div.addEventListener('click', () => {
             document.getElementById('inputPlan').value = article.plan;
-            document.getElementById('inputRep').value = article.rep === "000000" ? "" : article.rep;
+            let inputSym = document.getElementById('inputSymbole');
+            if (inputSym) inputSym.value = ''; // Vide l'autre champ automatiquement
             container.innerHTML = '';
             afficherFiche(article);
         });
@@ -219,10 +235,13 @@ function afficherFiche(article) {
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
             
+            let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
+            let designationSymbole = infoSymboleJson ? (infoSymboleJson.designation || c.intitule) : (c.designation || c.intitule);
+
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
                 <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
-                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444;">${c.designation || c.intitule}</span>
+                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444;">${designationSymbole}</span>
                 </div>
             </div>`;
 
@@ -251,6 +270,21 @@ function afficherFiche(article) {
 
     conteneurComposants.appendChild(boutonToggle);
     conteneurComposants.appendChild(contenuEclate);
+    document.getElementById('resultat').style.display = 'block';
+}
+
+function afficherFicheSymboleSeul(symItem) {
+    articleCourant = { plan: "SYMB", rep: "000000", intitule: symItem.designation || symItem.symbole };
+    document.getElementById('resPlan').textContent = "SYMB";
+    document.getElementById('resRep').textContent = symItem.symbole;
+    document.getElementById('resIntitule').textContent = symItem.designation || "Symbole issu du mapping";
+
+    let img = document.getElementById('imgPiece');
+    img.src = `${GITHUB_IMG_URL}${symItem.symbole}.jpg`;
+    img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+
+    document.getElementById('infoStockActuel').style.display = 'none';
+    document.getElementById('resSymbole').innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic; padding: 8px;">Recherche par symbole direct (pas de plan rattaché).</div>';
     document.getElementById('resultat').style.display = 'block';
 }
 
