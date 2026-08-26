@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.10-LAYOUT-SY-PLAN";
+const VERSION_APP = "v2.11-LAYOUT-SY-PLAN";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -67,7 +67,7 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     }, 4000);
 
-    // Écouteur de recherche Plan
+    // Écouteur de recherche Plan (Rétablissement des suggestions)
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
         let inputSym = document.getElementById('inputSymbole');
         if (inputSym && document.activeElement === inputSym && inputSym.value) {
