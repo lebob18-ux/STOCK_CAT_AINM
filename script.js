@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.6-FIX-PLAN-SY"; // ⚠️ Numéro de version mis à jour pour test
+const VERSION_APP = "v2.7-FIX-PLAN-SY"; // ⚠️ Numéro de version mis à jour pour test
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -363,14 +363,30 @@ function afficherFiche(article) {
             composantsPlan.forEach(c => {
                 let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
                 
-                // Récupération du stock existant pour CE symbole précis
-                let stockSy = stockGlobal.filter(s => 
-                    String(s.plan || "").trim() === String(c.plan || "").trim() &&
-                    String(s.symbole || "").trim() === String(c.symbole || "").trim()
-                );
+                // Recherche plus souple du stock pour ce symbole (nettoyage des espaces et minuscules)
+                let cleanSyC = String(c.symbole || "").trim().toLowerCase();
+                let stockSy = stockGlobal.filter(s => {
+                    let cleanSyStock = String(s.symbole || "").trim().toLowerCase();
+                    let cleanPlanStock = String(s.plan || "").trim();
+                    let cleanPlanItem = String(c.plan || "").trim();
+                    // On vérifie soit le symbole seul, soit le couple plan + symbole si pertinent
+                    return cleanSyStock === cleanSyC;
+                });
 
                 let row = document.createElement('div');
-                row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px;";
+                row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px; cursor: pointer;";
+                
+                // Petit effet visuel au survol pour indiquer que c'est interactif
+                row.addEventListener('mouseover', () => row.style.background = '#e9ecef');
+                row.addEventListener('mouseout',  () => row.style.background = '#f8f9fa');
+
+                // Permettre de sélectionner ce symbole pour faire un mouvement direct si besoin
+                row.addEventListener('click', () => {
+                    let saisieSym = document.getElementById('inputSymbole');
+                    if (saisieSym) saisieSym.value = c.symbole;
+                    // On peut aussi pré-remplir l'intitulé ou l'article courant si tu souhaites faire un mouvement dessus
+                    console.log("Symbole sélectionné pour action :", c.symbole);
+                });
 
                 let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
                      onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
@@ -384,7 +400,7 @@ function afficherFiche(article) {
                     let stockDetails = stockSy.map(st => `📍 Site: <b>${st.site || 'N/A'}</b> | Bât: <b>${st.batiment || 'N/A'}</b> | Rang: <b>${st.rang || 'N/A'}</b> (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
                     infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
                 } else {
-                    infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock pour ce SY</div>`;
+                    infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock enregistré pour ce SY</div>`;
                 }
 
                 infoHtml += `</div>`;
