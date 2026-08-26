@@ -1,4 +1,4 @@
-const VERSION_APP = "10-POPUP-sablier";
+const VERSION_APP = "rectif liste sy";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -66,7 +66,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('inputPlan')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
     document.getElementById('inputRep')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
 
-    // Écouteur de recherche par Symbole
+    // Écouteur de recherche par Symbole (connecté au mapping.json)
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
@@ -74,24 +74,37 @@ window.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
         if (val.length < 1) return;
 
-        let matches = cataloguePlanGlobal.filter(item => String(item.symbole || "").toLowerCase().includes(val));
-        let uniques = [...new Map(matches.map(item => [item.plan + "_" + item.rep, item])).values()].slice(0, 10);
+        let matches = catalogueSymboleGlobal.filter(item => 
+            String(item.symbole || "").toLowerCase().includes(val) || 
+            String(item.designation || "").toLowerCase().includes(val)
+        ).slice(0, 10);
 
-        if (uniques.length === 0) {
+        if (matches.length === 0) {
             container.innerHTML = '<div style="padding: 8px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd;">Aucun symbole trouvé</div>';
             return;
         }
 
         let wrapper = document.createElement('div');
         wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; position: absolute; z-index: 1000; width: 100%;";
-        uniques.forEach(article => {
+        
+        matches.forEach(symItem => {
             let div = document.createElement('div');
             div.style.cssText = "padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px;";
-            div.innerHTML = `<strong>Symbole pour Plan : ${article.plan}</strong> | Rep : ${article.rep === "000000" ? "Sans repère" : article.rep}<br><small>${article.intitule || article.designation}</small>`;
+            div.innerHTML = `<strong>SY : ${symItem.symbole}</strong><br><small>${symItem.designation || 'Sans désignation'}</small>`;
+            
             div.addEventListener('click', () => {
-                document.getElementById('inputSymbole').value = article.symbole;
+                document.getElementById('inputSymbole').value = symItem.symbole;
                 container.innerHTML = '';
-                afficherFiche(article);
+
+                let correspondancePlan = cataloguePlanGlobal.find(p => 
+                    String(p.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase()
+                );
+
+                if (correspondancePlan) {
+                    afficherFiche(correspondancePlan);
+                } else {
+                    alert("Symbole trouvé dans le mapping, mais aucun plan associé dans PELICAN1.");
+                }
             });
             wrapper.appendChild(div);
         });
