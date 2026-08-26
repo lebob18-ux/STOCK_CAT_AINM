@@ -1,3 +1,4 @@
+const VERSION_APP = "v2.5-TEST-2BLOCS"; // ⚠️ MODIFIE CETTE CHAÎNE À CHAQUE NOUVEL ESSAI
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -34,6 +35,15 @@ let stockGlobal = [];
 let articleCourant = null;
 
 window.addEventListener('DOMContentLoaded', () => {
+    // 🚀 ALERTE VISUELLE DE VERSION (À supprimer à la fin des essais)
+    console.log(`%c[VERSION ACTIVE] : ${VERSION_APP}`, "background: #222; color: #bada55; padding: 4px; font-size: 14px; font-weight: bold;");
+    
+    // Petite popup temporaire pour vérifier sur smartphone (disparaît toute seule ou au clic)
+    let bannerVersion = document.createElement('div');
+    bannerVersion.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; background: #007bff; color: white; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; z-index: 99999; box-shadow: 0 2px 5px rgba(0,0,0,0.2);";
+    bannerVersion.innerHTML = `TEST ACTIF : ${VERSION_APP} <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; margin-left: 10px; cursor: pointer;" onclick="this.parentElement.remove()">Fermer [X]</span>`;
+    document.body.prepend(bannerVersion);
+
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(err => console.log("Service Worker non enregistré"));
     }
@@ -246,10 +256,11 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE ---
+// --- AFFICHAGE DE LA FICHE (DEUX BLOCS DISTINCTS) ---
 function afficherFiche(article) {
     articleCourant = article;
 
+    // --- BLOC 1 : INFOS DU PLAN & MINIATURE ---
     let resPlan     = document.getElementById('resPlan');
     let resRep      = document.getElementById('resRep');
     let resIntitule = document.getElementById('resIntitule');
@@ -257,7 +268,6 @@ function afficherFiche(article) {
     if (resRep)      resRep.textContent      = (article.rep === "000000") ? "Sans repère" : (article.rep || '-');
     if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
-    // 1. IMAGE PRINCIPALE DU PLAN (EN-TÊTE)
     let img = document.getElementById('imgPiece');
     let nomImage = "";
     let saisieSymboleActif = (document.getElementById('inputSymbole') || {value: ''}).value.trim();
@@ -272,12 +282,63 @@ function afficherFiche(article) {
     }
 
     if (img) {
-        img.style.cssText = "display: block; max-width: 100%; height: 200px; object-fit: contain; margin: 0 auto 12px auto; border-radius: 6px; border: 1px solid #ccc; background: #fff;";
+        img.style.cssText = "display: block; max-width: 100%; height: 180px; object-fit: contain; margin: 0 auto 10px auto; border-radius: 6px; border: 1px solid #ccc; background: #fff;";
         img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
         img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22240%22%3E%3Crect width=%22320%22 height=%22240%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
     }
 
-    // 2. LISTE DES COMPOSANTS (SY) EN COLONNE SOUS LE PLAN AVEC LEUR STOCK RESPECTIF
+    // Stock global du plan (Bloc 1)
+    let existants = stockGlobal.filter(item => {
+        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+        let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
+        return matchPlan && matchRep;
+    });
+
+    let divStock = document.getElementById('infoStockActuel');
+    if (divStock) {
+        if (existants.length > 0) {
+            divStock.style.display         = 'block';
+            divStock.style.backgroundColor = '#d4edda';
+            divStock.style.border          = '1px solid #c3e6cb';
+            divStock.style.color           = '#155724';
+            divStock.style.padding         = '8px';
+            divStock.style.borderRadius    = '4px';
+            divStock.style.marginTop       = '8px';
+
+            let header = document.createElement('div');
+            header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK POUR CE PLAN (${existants.length}) :</strong><br>` +
+                               `<p style="font-size: 12px; margin: 4px 0 6px 0;">Cliquez pour sélectionner :</p>`;
+
+            let liste = document.createElement('div');
+            liste.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+
+            existants.forEach(ex => {
+                let item = document.createElement('div');
+                item.style.cssText = "cursor: pointer; background: white; border: 1px solid #28a745; padding: 5px 8px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;";
+                item.innerHTML = `
+                    <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
+                `;
+                item.addEventListener('click', () => selectionnerEmplacementExistant(ex));
+                liste.appendChild(item);
+            });
+
+            divStock.innerHTML = '';
+            divStock.appendChild(header);
+            divStock.appendChild(liste);
+        } else {
+            divStock.style.display         = 'block';
+            divStock.style.backgroundColor = '#fff3cd';
+            divStock.style.border          = '1px solid #ffeeba';
+            divStock.style.color           = '#856404';
+            divStock.style.padding         = '8px';
+            divStock.style.borderRadius    = '4px';
+            divStock.style.marginTop       = '8px';
+            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK GLOBAL :</strong> Saisissez l'emplacement pour créer le stock.`;
+        }
+    }
+
+    // --- BLOC 2 : LISTE DES SYMBOLES (SY) EN DESSOUS ---
     let composantsPlan = cataloguePlanGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -295,17 +356,17 @@ function afficherFiche(article) {
         conteneurComposants.innerHTML = '';
 
         let titreSection = document.createElement('div');
-        titreSection.style.cssText = "font-size: 14px; font-weight: bold; color: #0056b3; margin-bottom: 8px; border-bottom: 2px solid #0056b3; padding-bottom: 4px;";
-        titreSection.textContent = `Composition & Stock des Symboles (${composantsPlan.length}) :`;
+        titreSection.style.cssText = "font-size: 14px; font-weight: bold; color: #0056b3; margin: 15px 0 8px 0; border-bottom: 2px solid #0056b3; padding-bottom: 4px;";
+        titreSection.textContent = `Composition & Stock des Symboles (SY) :`;
         conteneurComposants.appendChild(titreSection);
 
         let wrapperCol = document.createElement('div');
-        wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;";
+        wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
 
         composantsPlan.forEach(c => {
             let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
             
-            // Chercher le stock pour ce composant précis (par plan et symbole)
+            // Chercher le stock pour ce symbole précis
             let stockSy = stockGlobal.filter(s => 
                 String(s.plan || "").trim() === String(c.plan || "").trim() &&
                 String(s.symbole || "").trim() === String(c.symbole || "").trim()
@@ -318,13 +379,14 @@ function afficherFiche(article) {
             let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
                  onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
 
-            // Infos du composant
+            // Infos du symbole, intitulé et emplacement
+            let designationTexte = c.designation || c.intitule || '';
             let infoHtml = `<div style="flex-grow: 1; font-size: 12px;">
-                <strong style="color: #0056b3; font-size: 13px;">Symbole : ${c.symbole || '-'}</strong> (Qté requise : <b>${c.quantite || 1}</b>)<br>
-                <span style="color: #444;">${c.designation || c.intitule || ''}</span><br>`;
+                <strong style="color: #0056b3; font-size: 13px;">SY : ${c.symbole || '-'}</strong> | Qté requise : <b>${c.quantite || 1}</b><br>
+                <span style="color: #444; display: inline-block; margin: 2px 0;">${designationTexte}</span><br>`;
 
             if (stockSy.length > 0) {
-                let stockDetails = stockSy.map(st => `📍 ${st.site || 'N/A'} / ${st.batiment || 'N/A'} / ${st.rang || 'N/A'} (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
+                let stockDetails = stockSy.map(st => `📍 Site: <b>${st.site || 'N/A'}</b> | Bât: <b>${st.batiment || 'N/A'}</b> | Rang: <b>${st.rang || 'N/A'}</b> (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
                 infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
             } else {
                 infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock pour ce SY</div>`;
@@ -339,56 +401,12 @@ function afficherFiche(article) {
         conteneurComposants.appendChild(wrapperCol);
     }
 
-    // 3. GESTION DU STOCK GLOBAL DU PLAN / EMPLACEMENTS
-    let existants = stockGlobal.filter(item => {
-        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
-        let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
-        return matchPlan && matchRep;
-    });
-
-    let divStock = document.getElementById('infoStockActuel');
-    if (divStock) {
-        if (existants.length > 0) {
-            divStock.style.display         = 'block';
-            divStock.style.backgroundColor = '#d4edda';
-            divStock.style.border          = '1px solid #c3e6cb';
-            divStock.style.color           = '#155724';
-
-            let header = document.createElement('div');
-            header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK POUR CE PLAN (${existants.length}) :</strong><br>` +
-                               `<p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>`;
-
-            let liste = document.createElement('div');
-            liste.style.cssText = "display: flex; flex-direction: column; gap: 6px;";
-
-            existants.forEach(ex => {
-                let item = document.createElement('div');
-                item.style.cssText = "cursor: pointer; background: white; border: 1px solid #28a745; padding: 6px 10px; border-radius: 4px; font-size: 13px; display: flex; justify-content: space-between; align-items: center;";
-                item.innerHTML = `
-                    <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
-                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
-                `;
-                item.addEventListener('click', () => selectionnerEmplacementExistant(ex));
-                liste.appendChild(item);
-            });
-
-            divStock.innerHTML = '';
-            divStock.appendChild(header);
-            divStock.appendChild(liste);
-        } else {
-            divStock.style.display         = 'block';
-            divStock.style.backgroundColor = '#fff3cd';
-            divStock.style.border          = '1px solid #ffeeba';
-            divStock.style.color           = '#856404';
-            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK GLOBAL :</strong> Saisissez l'emplacement pour créer le stock.`;
-        }
-    }
-
-    let elSite    = document.getElementById('stockSite');
-    let elBat     = document.getElementById('stockBatiment');
-    let elRang    = document.getElementById('stockRang');
-    let elQte     = document.getElementById('stockQuantite');
-    let elMvt     = document.getElementById('mouvementType');
+    // Reset des champs de saisie de stock
+    let elSite = document.getElementById('stockSite');
+    let elBat  = document.getElementById('stockBatiment');
+    let elRang = document.getElementById('stockRang');
+    let elQte  = document.getElementById('stockQuantite');
+    let elMvt  = document.getElementById('mouvementType');
     if (elSite) elSite.value = "";
     if (elBat)  elBat.value  = "";
     if (elRang) elRang.value = "";
@@ -493,20 +511,20 @@ function validerMouvementStock() {
     }
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-    _resetRecherche();
+    _resetForcerReset(); // ou _resetRecherche
     alert(typeMvt === 'ENTREE' ? "✅ Entrée de stock validée !" : "✅ Sortie de stock validée !");
 }
 
 // --- UTILITAIRE RESET ---
 function _resetRecherche() {
-    let resDiv   = document.getElementById('resultat');
+    let resDiv    = document.getElementById('resultat');
     let inputPlan = document.getElementById('inputPlan');
     let inputRep  = document.getElementById('inputRep');
     let listeRes  = document.getElementById('listePlanResultats');
     if (resDiv)     resDiv.style.display = 'none';
-    if (inputPlan) inputPlan.value = "";
-    if (inputRep)  inputRep.value  = "";
-    if (listeRes)  listeRes.innerHTML = "";
+    if (inputPlan)  inputPlan.value = "";
+    if (inputRep)   inputRep.value  = "";
+    if (listeRes)   listeRes.innerHTML = "";
     articleCourant = null;
 }
 
