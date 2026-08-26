@@ -142,7 +142,7 @@
 </style>
 
 <div class="container">
-    <h2>Gestion de Stock LUC</h2>
+    <h2>Gestion de Stock AINM</h2>
 
     <button id="btnInstaller" style="display:none;" onclick="installerApp()">Installer l'application</button>
 
@@ -150,26 +150,27 @@
         <button onclick="exporterStockCSV()">📤 Exporter Stock (CSV)</button>
     </div>
 
-    <!-- RECHERCHE PAR PLAN + REPÈRE -->
-    <div class="search-group">
-        <label>Recherche par Plan et Repère :</label>
-        <div style="display: flex; gap: 8px; margin-bottom: 4px;">
-            <div style="flex: 1; position: relative;">
-                <input type="text" id="inputPlan" inputmode="numeric" pattern="[0-9]*" placeholder="N° de plan">
-            </div>
-            <div style="flex: 1;">
-                <input type="text" id="inputRep" inputmode="numeric" pattern="[0-9]*" placeholder="N° de repère">
-            </div>
-        </div>
-        <div id="listePlanResultats"></div>
+<!-- Section de Recherche (Plan et SY sur la même ligne) -->
+<div style="display: flex; gap: 10px; margin-bottom: 15px;">
+    
+    <!-- Champ Plan -->
+    <div style="flex: 1; position: relative;">
+        <label for="inputPlan" style="font-size: 12px; font-weight: bold; color: #333; display: block; margin-bottom: 4px;">N° de Plan</label>
+        <input type="text" id="inputPlan" placeholder="Ex: 123456" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        <!-- Conteneur des suggestions de plan -->
+        <div id="listePlanResultats" style="position: absolute; width: 100%; z-index: 1000;"></div>
     </div>
 
-    <!-- RECHERCHE PAR SYMBOLE -->
-    <div class="search-group" style="margin-top: 15px;">
-        <label for="inputSymbole">Ou Recherche par Symbole :</label>
-        <input type="text" id="inputSymbole" inputmode="numeric" pattern="[0-9]*" placeholder="Rechercher par symbole...">
-        <div id="suggestions"></div>
+    <!-- Champ Symbole (SY) -->
+    <div style="flex: 1; position: relative;">
+        <label for="inputSymbole" style="font-size: 12px; font-weight: bold; color: #333; display: block; margin-bottom: 4px;">Symbole (SY)</label>
+        <input type="text" id="inputSymbole" placeholder="Ex: SYM01" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        <!-- Conteneur des suggestions de symboles -->
+        <div id="suggestions" style="position: absolute; width: 100%; z-index: 1000;"></div>
     </div>
+
+</div>
+
 
     <!-- FICHE ARTICLE -->
     <div id="resultat" class="card" style="display: none;">
