@@ -108,12 +108,36 @@
             font-size: 13px;
         }
         .toolbar button:hover { background: #5a6268; }
+        
+        /* Style spécifique pour le bloc plan vertical */
+        #blocPlanPrincipal {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        #imgPiece {
+            width: 100%;
+            max-height: 200px;
+            object-fit: contain;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background: #fff;
+            margin-bottom: 10px;
+        }
+        .sy-item-card {
+            background: #fff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Gestion de Stock Terrain</h2>
+    <h2>Gestion de Stock Terrain V2.6</h2>
 
     <!-- Bouton PWA (Installation) -->
     <button id="btnInstaller" onclick="installerApp()">Installer l'application sur l'appareil</button>
@@ -144,21 +168,19 @@
         <div id="suggestions"></div>
     </div>
 
-    <!-- FICHE ARTICLE & MOUVEMENT DE STOCK (Divisé en 2 blocs distincts) -->
+    <!-- FICHE ARTICLE & MOUVEMENT DE STOCK -->
     <div id="resultat" class="card" style="display: none;">
         
-        <!-- BLOC 1 : MINIATURE DU PLAN ET INFORMATIONS GLOBALES -->
-        <div id="blocPlanPrincipal" style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
-            <img id="imgPiece" src="" alt="Miniature" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;">
-            <div>
-                <p style="margin: 0 0 4px 0; font-size: 14px;"><strong>Plan :</strong> <span id="resPlan"></span> | <strong>REP :</strong> <span id="resRep"></span></p>
-                <p style="margin: 0; font-size: 13px; color: #555;" id="resIntitule"></p>
-            </div>
+        <!-- BLOC 1 : MINIATURE DU PLAN EN HAUT ET TEXTES EN DESSOUS -->
+        <div id="blocPlanPrincipal">
+            <img id="imgPiece" src="" alt="Miniature du Plan">
+            <p style="margin: 0 0 6px 0; font-size: 15px;"><strong>Plan :</strong> <span id="resPlan"></span> | <strong>REP :</strong> <span id="resRep"></span></p>
+            <p style="margin: 0; font-size: 14px; color: #555;" id="resIntitule"></p>
         </div>
 
         <div id="infoStockActuel" style="margin-bottom: 12px; padding: 10px; border-radius: 4px; display: none;"></div>
 
-        <!-- BLOC 2 : LISTE DES SYMBOLES (SY) EN DESSOUS -->
+        <!-- BLOC 2 : LISTE DES SYMBOLES (SY) AVEC LEUR STOCK INDIVIDUEL -->
         <div id="resSymbole" style="margin-top: 15px;"></div>
 
         <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
@@ -198,7 +220,7 @@
 
 </div>
 
-<!-- Script principal -->
+<!-- Script principal (assure-toi d'adapter la logique JS interne pour exclure les ensembles complets et gérer les Plan-Rep comme des symboles) -->
 <script src="script.js"></script>
 </body>
 </html>
