@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.12-FIX-SYMBOLE-PUR";
+const VERSION_APP = "v2.13-STOCK-SYMBOLE";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -236,7 +236,7 @@ function afficherFiche(article) {
             let designationSymbole = infoSymboleJson ? (infoSymboleJson.designation || c.intitule) : (c.designation || c.intitule);
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 90px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444;">${designationSymbole}</span>
                 </div>
@@ -271,7 +271,7 @@ function afficherFiche(article) {
 }
 
 function afficherFicheSymboleSeul(symItem) {
-    articleCourant = { plan: "SYMB", rep: symItem.symbole, intitule: symItem.designation || symItem.symbole };
+    articleCourant = { plan: "SYMB", rep: symItem.symbole, intitule: symItem.designation || symItem.symbole, symbole: symItem.symbole };
     
     // Affichage des infos du symbole dans les libellés de la fiche
     document.getElementById('resPlan').textContent = "SYMBOLE PUR";
@@ -285,14 +285,37 @@ function afficherFicheSymboleSeul(symItem) {
         img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EMiniature introuvable%3C/text%3E%3C/svg%3E'; 
     };
 
-    // Masquer le stock plan-repère puisqu'on est sur un symbole direct
-    document.getElementById('infoStockActuel').style.display = 'none';
+    // --- GESTION DES EMPLACEMENTS DE STOCK POUR CE SYMBOLE ---
+    let existantsSym = stockGlobal.filter(item => 
+        String(item.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase() &&
+        (!item.plan || item.plan === "SYMB" || item.plan === "")
+    );
+
+    let divStock = document.getElementById('infoStockActuel');
+    divStock.style.display = 'block';
     
-    // Remplir la zone secondaire avec un message explicatif ou la liste des plans qui utilisent ce symbole si besoin
+    let htmlStock = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
+    htmlStock += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock Symbole :</strong>
+                    <button type="button" onclick="ouvrirModalStockSymbole(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
+                  </div>`;
+
+    if (existantsSym.length > 0) {
+        existantsSym.forEach(ex => {
+            htmlStock += `<div onclick='ouvrirModalStockSymbole(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+            </div>`;
+        });
+    } else {
+        htmlStock += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole. Cliquez sur "Ajouter Stock".</div>`;
+    }
+    htmlStock += `</div>`;
+    divStock.innerHTML = htmlStock;
+    
+    // Vider la zone secondaire en dessous
     let conteneurComposants = document.getElementById('resSymbole');
-    conteneurComposants.innerHTML = `<div style="font-size: 13px; color: #333; background: #f1f3f5; padding: 10px; border-radius: 6px; border: 1px solid #ced4da;">
-        <strong>Information Symbole :</strong> Ce symbole <b>${symItem.symbole}</b> est affiché directement depuis le mapping.
-    </div>`;
+    conteneurComposants.innerHTML = '';
 
     document.getElementById('resultat').style.display = 'block';
 }
@@ -302,6 +325,21 @@ function ouvrirModalPlanRep(existant) {
     contexteMouvement = { type: 'PLAN_REP', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Plan-Repère" : "Ajouter stock Plan-Repère";
     document.getElementById('modalSousTitre').textContent = `Plan : ${articleCourant.plan} | Rep : ${articleCourant.rep}`;
+    document.getElementById('divTypeMvt').style.display = 'block';
+    
+    document.getElementById('mouvementType').value = 'ENTREE';
+    document.getElementById('stockSite').value = existant ? existant.site : '';
+    document.getElementById('stockBatiment').value = existant ? existant.batiment : '';
+    document.getElementById('stockRang').value = existant ? existant.rang : '';
+    document.getElementById('stockQuantite').value = '1';
+
+    document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function ouvrirModalStockSymbole(existant) {
+    contexteMouvement = { type: 'SYMBOLE_PUR', donnees: existant };
+    document.getElementById('modalTitre').textContent = existant ? "Modifier stock Symbole" : "Ajouter stock Symbole";
+    document.getElementById('modalSousTitre').textContent = `Symbole : ${articleCourant.symbole}`;
     document.getElementById('divTypeMvt').style.display = 'block';
     
     document.getElementById('mouvementType').value = 'ENTREE';
@@ -362,6 +400,29 @@ function validerMouvementStock() {
             if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant ou emplacement introuvable."); return; }
             stockGlobal[index].quantite -= qte;
         }
+    } else if (contexteMouvement.type === 'SYMBOLE_PUR') {
+        let typeMvt = document.getElementById('mouvementType').value;
+        let site = document.getElementById('stockSite').value.trim();
+        let batiment = document.getElementById('stockBatiment').value.trim();
+        let rang = document.getElementById('stockRang').value.trim();
+
+        if (!site || !batiment || !rang) { alert("Remplissez tous les champs d'emplacement."); return; }
+
+        let index = stockGlobal.findIndex(item =>
+            String(item.symbole || "").trim().toLowerCase() === String(articleCourant.symbole || "").trim().toLowerCase() &&
+            (!item.plan || item.plan === "SYMB" || item.plan === "") &&
+            String(item.site || "").toLowerCase() === site.toLowerCase() &&
+            String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
+            String(item.rang || "").toLowerCase() === rang.toLowerCase()
+        );
+
+        if (typeMvt === 'ENTREE') {
+            if (index !== -1) stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            else stockGlobal.push({ plan: "SYMB", rep: "", symbole: articleCourant.symbole, intitule: articleCourant.intitule, site, batiment, rang, quantite: qte });
+        } else {
+            if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant ou emplacement introuvable."); return; }
+            stockGlobal[index].quantite -= qte;
+        }
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -380,7 +441,15 @@ function validerMouvementStock() {
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
     fermerModal();
-    afficherFiche(articleCourant);
+    
+    // Rafraîchir l'affichage selon le contexte actuel
+    if (articleCourant.plan === "SYMB") {
+        let symObj = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(articleCourant.symbole || "").trim().toLowerCase());
+        if (symObj) afficherFicheSymboleSeul(symObj);
+    } else {
+        afficherFiche(articleCourant);
+    }
+    
     alert("✅ Mouvement enregistré avec succès !");
 }
 
