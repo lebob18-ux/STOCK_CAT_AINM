@@ -207,97 +207,18 @@ function selectionnerPlanDansListe(article) {
 }
 
 // --- RECHERCHE PAR SYMBOLE ---
-function afficherSuggestionsSymbole(prefixe) {
-    let container = document.getElementById('suggestions');
-    if (!container) return;
-    container.innerHTML = '';
-
-    let matches = catalogueSymboleGlobal.filter(item => String(item.symbole || "").startsWith(prefixe));
-
-    if (matches.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucune correspondance</div>';
-        return;
-    }
-
-    matches.forEach(article => {
-        let div = document.createElement('div');
-        div.className = 'suggestion-item';
-        let imgUrl = article.symbole ? `${GITHUB_IMG_URL}${article.symbole}.jpg` : '';
-
-        div.innerHTML = `
-            <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"
-                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
-            <div style="font-size: 14px; margin-left: 10px;">
-                <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan})<br>
-                <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
-            </div>
-        `;
-
-        // FIX : addEventListener à la place de onclick inline (même protection apostrophe)
-        div.addEventListener('click', () => {
-            let inputSymbole = document.getElementById('inputSymbole');
-            let inputPlan    = document.getElementById('inputPlan');
-            let inputRep     = document.getElementById('inputRep');
-            if (inputSymbole) inputSymbole.value = article.symbole;
-            if (inputPlan)    inputPlan.value    = article.plan;
-            if (inputRep)     inputRep.value     = (article.rep === "000000") ? "" : (article.rep || '');
-            let sug = document.getElementById('suggestions');
-            if (sug) sug.innerHTML = '';
-            afficherFiche(article);
-        });
-
-        container.appendChild(div);
-    });
-}
-
 // --- AFFICHAGE DE LA FICHE ---
 function afficherFiche(article) {
     articleCourant = article;
 
-    let resPlan    = document.getElementById('resPlan');
-    let resRep     = document.getElementById('resRep');
+    let resPlan     = document.getElementById('resPlan');
+    let resRep      = document.getElementById('resRep');
     let resIntitule = document.getElementById('resIntitule');
     if (resPlan)     resPlan.textContent     = article.plan || '-';
     if (resRep)      resRep.textContent      = (article.rep === "000000") ? "Sans repère" : (article.rep || '-');
     if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
-    // Composants du plan/repère
-    let composantsPlan = cataloguePlanGlobal.filter(item => {
-        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
-        let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
-        return matchPlan && matchRep;
-    });
-
-    if (composantsPlan.length === 0) {
-        composantsPlan = cataloguePlanGlobal.filter(item =>
-            String(item.plan || "").trim() === String(article.plan || "").trim()
-        );
-    }
-
-    let conteneurComposants = document.getElementById('resSymbole');
-    if (conteneurComposants) {
-        let wrapper = document.createElement('div');
-        wrapper.style.cssText = "display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px;";
-
-        composantsPlan.forEach(c => {
-            let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
-            let row = document.createElement('div');
-            row.style.cssText = "display: flex; flex-direction: column; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; padding: 8px 6px 6px 6px; border-radius: 4px; text-align: center; width: 110px; flex-shrink: 0;";
-            row.innerHTML = `
-                <img src="${imgSymbUrl}" style="width: 100px; height: 75px; object-fit: contain; border-radius: 3px; border: 1px solid #ccc; background: #fff; margin-bottom: 6px;"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2275%22%3E%3Crect width=%22100%22 height=%2275%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2211%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
-                <div style="font-size: 12px; font-weight: bold; color: #0056b3;">${c.symbole || '-'}</div>
-                <div style="font-size: 11px; color: #333;">Qte : <b>${c.quantite || 1}</b></div>
-                <div style="font-size: 10px; color: #666; margin-top: 2px; word-break: break-word;">${c.designation || c.intitule || ''}</div>
-            `;
-            wrapper.appendChild(row);
-        });
-
-        conteneurComposants.innerHTML = '';
-        conteneurComposants.appendChild(wrapper);
-    }
-
-    // Image principale
+    // 1. GESTION DE L'IMAGE PRINCIPALE (EN PREMIER)
     let img = document.getElementById('imgPiece');
     let nomImage = "";
     let saisieSymboleActif = (document.getElementById('inputSymbole') || {value: ''}).value.trim();
@@ -312,11 +233,55 @@ function afficherFiche(article) {
     }
 
     if (img) {
+        // Style propre pour centrer et mettre en valeur l'image principale en haut
+        img.style.cssText = "display: block; max-width: 100%; height: 200px; object-fit: contain; margin: 0 auto 12px auto; border-radius: 6px; border: 1px solid #ccc; background: #fff;";
         img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
         img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22240%22%3E%3Crect width=%22320%22 height=%22240%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
     }
 
-    // Stock existant
+    // 2. COMPOSANTS DU PLAN/REPÈRE (EN DESSOUS DE L'IMAGE PRINCIPALE, SOUS FORME DE BANDEAU)
+    let composantsPlan = cataloguePlanGlobal.filter(item => {
+        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+        let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
+        return matchPlan && matchRep;
+    });
+
+    if (composantsPlan.length === 0) {
+        composantsPlan = cataloguePlanGlobal.filter(item =>
+            String(item.plan || "").trim() === String(article.plan || "").trim()
+        );
+    }
+
+    let conteneurComposants = document.getElementById('resSymbole');
+    if (conteneurComposants) {
+        conteneurComposants.innerHTML = '';
+        
+        let titreSection = document.createElement('div');
+        titreSection.style.cssText = "font-size: 13px; font-weight: bold; color: #444; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px;";
+        titreSection.textContent = `Composition du plan (${composantsPlan.length}) :`;
+        conteneurComposants.appendChild(titreSection);
+
+        let wrapper = document.createElement('div');
+        // Disposition en ligne horizontale avec défilement fluide si besoin (effet bandeau / en-tête)
+        wrapper.style.cssText = "display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px;";
+
+        composantsPlan.forEach(c => {
+            let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
+            let row = document.createElement('div');
+            row.style.cssText = "display: flex; flex-direction: column; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px; border-radius: 4px; text-align: center; min-width: 90px; flex-shrink: 0;";
+            row.innerHTML = `
+                <img src="${imgSymbUrl}" style="width: 80px; height: 60px; object-fit: contain; border-radius: 3px; border: 1px solid #ccc; background: #fff; margin-bottom: 4px;"
+                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2260%22%3E%3Crect width=%2280%22 height=%2260%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <div style="font-size: 11px; font-weight: bold; color: #0056b3;">${c.symbole || '-'}</div>
+                <div style="font-size: 10px; color: #333;">Qte : <b>${c.quantite || 1}</b></div>
+            `;
+            wrapper.appendChild(row);
+        });
+
+        conteneurComposants.appendChild(wrapper);
+    }
+
+    // 3. GESTION DU STOCK EXISTANT
     let existants = stockGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -331,8 +296,6 @@ function afficherFiche(article) {
             divStock.style.border          = '1px solid #c3e6cb';
             divStock.style.color           = '#155724';
 
-            // FIX : construction DOM au lieu de innerHTML avec JSON inline
-            // pour éviter le bug apostrophe dans site/batiment/rang
             let header = document.createElement('div');
             header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>` +
                                `<p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>`;
