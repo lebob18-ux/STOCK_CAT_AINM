@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.9-LAYOUT-SY-PLAN";
+const VERSION_APP = "v2.10-LAYOUT-SY-PLAN";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -67,17 +67,16 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     }, 4000);
 
-    // Écouteur de recherche Plan (gère aussi le filtrage global)
+    // Écouteur de recherche Plan
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
-        // Si l'utilisateur tape dans Plan, on vide le champ Symbole pour éviter les conflits
         let inputSym = document.getElementById('inputSymbole');
-        if (inputSym && document.activeElement === inputSymbebale && inputSym.value) {
+        if (inputSym && document.activeElement === inputSym && inputSym.value) {
             inputSym.value = '';
         }
         afficherSuggestionsPlan(); 
     });
 
-    // Écouteur de recherche par Symbole (exclusivement basé sur mapping.json)
+    // Écouteur de recherche par Symbole (avec miniatures intégrées dans la liste)
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
@@ -85,7 +84,6 @@ window.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
         if (val.length < 1) return;
 
-        // Si l'utilisateur tape un symbole, on vide le champ Plan
         let inputPln = document.getElementById('inputPlan');
         if (inputPln) inputPln.value = '';
 
@@ -104,14 +102,20 @@ window.addEventListener('DOMContentLoaded', () => {
         
         matches.forEach(symItem => {
             let div = document.createElement('div');
-            div.style.cssText = "padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px;";
-            div.innerHTML = `<strong>SY : ${symItem.symbole}</strong><br><small>${symItem.designation || 'Sans désignation'}</small>`;
+            div.style.cssText = "padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;";
+            
+            let imgUrl = `${GITHUB_IMG_URL}${symItem.symbole}.jpg`;
+            div.innerHTML = `
+                <img src="${imgUrl}" style="width: 45px; height: 35px; object-fit: contain; border: 1px solid #ddd; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2245%22 height=%2235%22%3E%3Crect width=%2245%22 height=%2235%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%228%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
+                <div>
+                    <strong>SY : ${symItem.symbole}</strong><br><small style="color: #555;">${symItem.designation || 'Sans désignation'}</small>
+                </div>
+            `;
             
             div.addEventListener('click', () => {
                 document.getElementById('inputSymbole').value = symItem.symbole;
                 container.innerHTML = '';
 
-                // Vidage automatique de l'autre champ de saisie
                 let inputPln = document.getElementById('inputPlan');
                 if (inputPln) inputPln.value = '';
 
@@ -158,7 +162,7 @@ function afficherSuggestionsPlan() {
         div.addEventListener('click', () => {
             document.getElementById('inputPlan').value = article.plan;
             let inputSym = document.getElementById('inputSymbole');
-            if (inputSym) inputSym.value = ''; // Vide l'autre champ automatiquement
+            if (inputSym) inputSym.value = ''; 
             container.innerHTML = '';
             afficherFiche(article);
         });
