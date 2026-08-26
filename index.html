@@ -1,4 +1,4 @@
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 
 <head>
@@ -125,7 +125,8 @@
     </style>
 </head>
 <body>
-<!-- Écran de chargement initial -->
+
+<!-- Écran de chargement initial avec sablier -->
 <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.95); z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif;">
     <div style="font-size: 50px; animation: rotationSablier 2s infinite linear;">⏳</div>
     <div style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #333;">Chargement des catalogues en cours...</div>
@@ -139,8 +140,9 @@
     100% { transform: rotate(360deg); }
 }
 </style>
+
 <div class="container">
-    <h2>Gestion de Stock sablier</h2>
+    <h2>Gestion de Stock LUC</h2>
 
     <button id="btnInstaller" style="display:none;" onclick="installerApp()">Installer l'application</button>
 
@@ -179,7 +181,7 @@
             <p style="margin: 0; font-size: 14px; color: #555;" id="resIntitule"></p>
         </div>
 
-        <!-- LIEUX DE STOCK ACTUEL DU PLAN-REPÈRE (Cliquable pour ouvrir la popup) -->
+        <!-- LIEUX DE STOCK ACTUEL DU PLAN-REPÈRE -->
         <div id="infoStockActuel" style="margin-bottom: 12px; display: none;"></div>
 
         <!-- BLOC 2 : LISTE DES SYMBOLES (ÉCLATÉ) -->
