@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.14 PLAN.jpg";
+const VERSION_APP = "v2.15 PLAN.jpg";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
