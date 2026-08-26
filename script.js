@@ -56,12 +56,12 @@ window.addEventListener('DOMContentLoaded', () => {
                     let cleanRep = (rawRep === "" || rawRep === "******") ? "000000" : rawRep;
                     return {
                         pelican:     String(row.PELICAN          || "").trim(),
-                        plan:        String(row.PLAN             || "").trim(),
+                        plan:        String(row.PLAN              || "").trim(),
                         rep:         cleanRep,
-                        intitule:    String(row.INT_PLAN         || "").trim(),
-                        symbole:     String(row.SYMBOLE_ECLATE   || "").trim(),
-                        quantite:    parseInt(row.QUANTITE)      || 1,
-                        designation: String(row.DESIGNATION      || "").trim()
+                        intitule:    String(row.INT_PLAN          || "").trim(),
+                        symbole:     String(row.SYMBOLE_ECLATE    || "").trim(),
+                        quantite:    parseInt(row.QUANTITE)       || 1,
+                        designation: String(row.DESIGNATION       || "").trim()
                     };
                 });
             })
@@ -156,8 +156,8 @@ function afficherSuggestionsPlan() {
     if (!recherchePlan && !rechercheRep) return;
 
     let matches = cataloguePlanGlobal.filter(item => {
-        let p            = String(item.plan || "").toLowerCase().trim().replace(/^0+/, '');
-        let r            = String(item.rep  || "").toLowerCase().trim().replace(/^0+/, '');
+        let p             = String(item.plan || "").toLowerCase().trim().replace(/^0+/, '');
+        let r             = String(item.rep  || "").toLowerCase().trim().replace(/^0+/, '');
         let cleanRechPlan = recherchePlan.replace(/^0+/, '');
         let cleanRechRep  = rechercheRep.replace(/^0+/, '');
 
@@ -175,12 +175,9 @@ function afficherSuggestionsPlan() {
         return;
     }
 
-    // Conteneur flottant
     let wrapper = document.createElement('div');
     wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: absolute; z-index: 1000; width: 92%;";
 
-    // FIX : on utilise addEventListener au lieu de onclick="..." dans le HTML
-    // pour éviter le bug avec les apostrophes dans les intitulés (ex: "RAPPEL D'ECART")
     resultatsUniques.forEach(article => {
         let displayRep = (article.rep === "000000") ? "Sans repère" : article.rep;
         let div = document.createElement('div');
@@ -207,6 +204,48 @@ function selectionnerPlanDansListe(article) {
 }
 
 // --- RECHERCHE PAR SYMBOLE ---
+function afficherSuggestionsSymbole(prefixe) {
+    let container = document.getElementById('suggestions');
+    if (!container) return;
+    container.innerHTML = '';
+
+    let matches = catalogueSymboleGlobal.filter(item => String(item.symbole || "").startsWith(prefixe));
+
+    if (matches.length === 0) {
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 14px;">Aucune correspondance</div>';
+        return;
+    }
+
+    matches.forEach(article => {
+        let div = document.createElement('div');
+        div.className = 'suggestion-item';
+        let imgUrl = article.symbole ? `${GITHUB_IMG_URL}${article.symbole}.jpg` : '';
+
+        div.innerHTML = `
+            <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc;"
+                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+            <div style="font-size: 14px; margin-left: 10px;">
+                <strong style="color: #0056b3;">Symb: ${article.symbole}</strong> (Plan: ${article.plan})<br>
+                <small style="color: #555; display: inline-block; margin-top: 3px;">${article.intitule}</small>
+            </div>
+        `;
+
+        div.addEventListener('click', () => {
+            let inputSymbole = document.getElementById('inputSymbole');
+            let inputPlan    = document.getElementById('inputPlan');
+            let inputRep     = document.getElementById('inputRep');
+            if (inputSymbole) inputSymbole.value = article.symbole;
+            if (inputPlan)    inputPlan.value    = article.plan;
+            if (inputRep)     inputRep.value     = (article.rep === "000000") ? "" : (article.rep || '');
+            let sug = document.getElementById('suggestions');
+            if (sug) sug.innerHTML = '';
+            afficherFiche(article);
+        });
+
+        container.appendChild(div);
+    });
+}
+
 // --- AFFICHAGE DE LA FICHE ---
 function afficherFiche(article) {
     articleCourant = article;
@@ -218,7 +257,7 @@ function afficherFiche(article) {
     if (resRep)      resRep.textContent      = (article.rep === "000000") ? "Sans repère" : (article.rep || '-');
     if (resIntitule) resIntitule.textContent = article.intitule || '-';
 
-    // 1. GESTION DE L'IMAGE PRINCIPALE (EN PREMIER)
+    // 1. IMAGE PRINCIPALE DU PLAN (EN-TÊTE)
     let img = document.getElementById('imgPiece');
     let nomImage = "";
     let saisieSymboleActif = (document.getElementById('inputSymbole') || {value: ''}).value.trim();
@@ -233,13 +272,12 @@ function afficherFiche(article) {
     }
 
     if (img) {
-        // Style propre pour centrer et mettre en valeur l'image principale en haut
         img.style.cssText = "display: block; max-width: 100%; height: 200px; object-fit: contain; margin: 0 auto 12px auto; border-radius: 6px; border: 1px solid #ccc; background: #fff;";
         img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
         img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22240%22%3E%3Crect width=%22320%22 height=%22240%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
     }
 
-    // 2. COMPOSANTS DU PLAN/REPÈRE (EN DESSOUS DE L'IMAGE PRINCIPALE, SOUS FORME DE BANDEAU)
+    // 2. LISTE DES COMPOSANTS (SY) EN COLONNE SOUS LE PLAN AVEC LEUR STOCK RESPECTIF
     let composantsPlan = cataloguePlanGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -255,33 +293,53 @@ function afficherFiche(article) {
     let conteneurComposants = document.getElementById('resSymbole');
     if (conteneurComposants) {
         conteneurComposants.innerHTML = '';
-        
+
         let titreSection = document.createElement('div');
-        titreSection.style.cssText = "font-size: 13px; font-weight: bold; color: #444; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 4px;";
-        titreSection.textContent = `Composition du plan (${composantsPlan.length}) :`;
+        titreSection.style.cssText = "font-size: 14px; font-weight: bold; color: #0056b3; margin-bottom: 8px; border-bottom: 2px solid #0056b3; padding-bottom: 4px;";
+        titreSection.textContent = `Composition & Stock des Symboles (${composantsPlan.length}) :`;
         conteneurComposants.appendChild(titreSection);
 
-        let wrapper = document.createElement('div');
-        // Disposition en ligne horizontale avec défilement fluide si besoin (effet bandeau / en-tête)
-        wrapper.style.cssText = "display: flex; flex-direction: row; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px;";
+        let wrapperCol = document.createElement('div');
+        wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;";
 
         composantsPlan.forEach(c => {
             let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
+            
+            // Chercher le stock pour ce composant précis (par plan et symbole)
+            let stockSy = stockGlobal.filter(s => 
+                String(s.plan || "").trim() === String(c.plan || "").trim() &&
+                String(s.symbole || "").trim() === String(c.symbole || "").trim()
+            );
+
             let row = document.createElement('div');
-            row.style.cssText = "display: flex; flex-direction: column; align-items: center; background: #f8f9fa; border: 1px solid #e9ecef; padding: 6px; border-radius: 4px; text-align: center; min-width: 90px; flex-shrink: 0;";
-            row.innerHTML = `
-                <img src="${imgSymbUrl}" style="width: 80px; height: 60px; object-fit: contain; border-radius: 3px; border: 1px solid #ccc; background: #fff; margin-bottom: 4px;"
-                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2280%22 height=%2260%22%3E%3Crect width=%2280%22 height=%2260%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
-                <div style="font-size: 11px; font-weight: bold; color: #0056b3;">${c.symbole || '-'}</div>
-                <div style="font-size: 10px; color: #333;">Qte : <b>${c.quantite || 1}</b></div>
-            `;
-            wrapper.appendChild(row);
+            row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px;";
+
+            // Miniature du symbole
+            let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
+                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
+
+            // Infos du composant
+            let infoHtml = `<div style="flex-grow: 1; font-size: 12px;">
+                <strong style="color: #0056b3; font-size: 13px;">Symbole : ${c.symbole || '-'}</strong> (Qté requise : <b>${c.quantite || 1}</b>)<br>
+                <span style="color: #444;">${c.designation || c.intitule || ''}</span><br>`;
+
+            if (stockSy.length > 0) {
+                let stockDetails = stockSy.map(st => `📍 ${st.site || 'N/A'} / ${st.batiment || 'N/A'} / ${st.rang || 'N/A'} (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
+                infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
+            } else {
+                infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock pour ce SY</div>`;
+            }
+
+            infoHtml += `</div>`;
+
+            row.innerHTML = imgHtml + infoHtml;
+            wrapperCol.appendChild(row);
         });
 
-        conteneurComposants.appendChild(wrapper);
+        conteneurComposants.appendChild(wrapperCol);
     }
 
-    // 3. GESTION DU STOCK EXISTANT
+    // 3. GESTION DU STOCK GLOBAL DU PLAN / EMPLACEMENTS
     let existants = stockGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
@@ -297,7 +355,7 @@ function afficherFiche(article) {
             divStock.style.color           = '#155724';
 
             let header = document.createElement('div');
-            header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK (${existants.length}) :</strong><br>` +
+            header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK POUR CE PLAN (${existants.length}) :</strong><br>` +
                                `<p style="font-size: 12px; margin: 4px 0 8px 0;">Cliquez pour sélectionner :</p>`;
 
             let liste = document.createElement('div');
@@ -322,7 +380,7 @@ function afficherFiche(article) {
             divStock.style.backgroundColor = '#fff3cd';
             divStock.style.border          = '1px solid #ffeeba';
             divStock.style.color           = '#856404';
-            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK :</strong> Saisissez l'emplacement pour créer le stock.`;
+            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK GLOBAL :</strong> Saisissez l'emplacement pour créer le stock.`;
         }
     }
 
@@ -345,7 +403,7 @@ function selectionnerEmplacementExistant(existant) {
     let elSite = document.getElementById('stockSite');
     let elBat  = document.getElementById('stockBatiment');
     let elRang = document.getElementById('stockRang');
-    if (elSite) elSite.value = existant.site    || "";
+    if (elSite) elSite.value = existant.site     || "";
     if (elBat)  elBat.value  = existant.batiment || "";
     if (elRang) elRang.value = existant.rang     || "";
     let qteInput = document.getElementById('stockQuantite');
@@ -356,7 +414,7 @@ function selectionnerEmplacementExistant(existant) {
 function validerMouvementStock() {
     if (!articleCourant) return;
 
-    let typeMvt     = (document.getElementById('mouvementType')  || {value: 'ENTREE'}).value;
+    let typeMvt     = (document.getElementById('mouvementType')   || {value: 'ENTREE'}).value;
     let site        = (document.getElementById('stockSite')       || {value: ''}).value.trim();
     let batiment    = (document.getElementById('stockBatiment')   || {value: ''}).value.trim();
     let rang        = (document.getElementById('stockRang')        || {value: ''}).value.trim();
@@ -399,11 +457,11 @@ function validerMouvementStock() {
     }
 
     let index = stockGlobal.findIndex(item =>
-        String(item.plan     || "").trim()        === String(articleCourant.plan || "").trim() &&
-        String(item.rep      || "").trim()        === String(articleCourant.rep  || "").trim() &&
-        String(item.site     || "").toLowerCase() === site.toLowerCase()     &&
-        String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
-        String(item.rang     || "").toLowerCase() === rang.toLowerCase()
+        String(item.plan      || "").trim()        === String(articleCourant.plan || "").trim() &&
+        String(item.rep       || "").trim()        === String(articleCourant.rep  || "").trim() &&
+        String(item.site      || "").toLowerCase() === site.toLowerCase()      &&
+        String(item.batiment  || "").toLowerCase() === batiment.toLowerCase() &&
+        String(item.rang      || "").toLowerCase() === rang.toLowerCase()
     );
 
     if (typeMvt === 'ENTREE') {
@@ -411,14 +469,14 @@ function validerMouvementStock() {
             stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qteDemandee;
         } else {
             stockGlobal.push({
-                plan:     articleCourant.plan,
-                rep:      articleCourant.rep     || "",
-                symbole:  articleCourant.symbole || "",
-                intitule: articleCourant.intitule || "",
-                site:     site,
-                batiment: batiment,
-                rang:     rang,
-                quantite: qteDemandee
+                plan:      articleCourant.plan,
+                rep:       articleCourant.rep       || "",
+                symbole:   articleCourant.symbole   || "",
+                intitule:  articleCourant.intitule  || "",
+                site:      site,
+                batiment:  batiment,
+                rang:      rang,
+                quantite:  qteDemandee
             });
         }
     } else {
@@ -445,7 +503,7 @@ function _resetRecherche() {
     let inputPlan = document.getElementById('inputPlan');
     let inputRep  = document.getElementById('inputRep');
     let listeRes  = document.getElementById('listePlanResultats');
-    if (resDiv)    resDiv.style.display = 'none';
+    if (resDiv)     resDiv.style.display = 'none';
     if (inputPlan) inputPlan.value = "";
     if (inputRep)  inputRep.value  = "";
     if (listeRes)  listeRes.innerHTML = "";
@@ -467,9 +525,9 @@ function exporterStockCSV() {
             item.rep === "000000" ? "" : (item.rep || ""),
             item.symbole || "",
             `"${(item.intitule || "").replace(/"/g, '""')}"`,
-            item.site     || "",
+            item.site      || "",
             item.batiment || "",
-            item.rang     || "",
+            item.rang      || "",
             item.quantite || 0
         ].join(";");
         csvContent += ligne + "\n";
