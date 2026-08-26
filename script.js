@@ -97,18 +97,20 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        let wrapper = document.createElement('div');
-        wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 250px; overflow-y: auto; position: absolute; z-index: 1000; width: 100%;";
+let wrapper = document.createElement('div');
+        // MODIFICATION ICI : On augmente la largeur (width: 100% + min-width ou left: 0) et on améliore l'espacement
+        wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
         
         matches.forEach(symItem => {
             let div = document.createElement('div');
-            div.style.cssText = "padding: 8px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 10px;";
+            // MODIFICATION ICI : On augmente un peu la taille de la miniature (ex: 60px x 45px au lieu de 45px x 35px)
+            div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
             
             let imgUrl = `${GITHUB_IMG_URL}${symItem.symbole}.jpg`;
             div.innerHTML = `
-                <img src="${imgUrl}" style="width: 45px; height: 35px; object-fit: contain; border: 1px solid #ddd; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2245%22 height=%2235%22%3E%3Crect width=%2245%22 height=%2235%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%228%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
-                <div>
-                    <strong>SY : ${symItem.symbole}</strong><br><small style="color: #555;">${symItem.designation || 'Sans désignation'}</small>
+                <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
+                <div style="flex-grow: 1;">
+                    <strong style="font-size: 14px; color: #0056b3;">SY : ${symItem.symbole}</strong><br><small style="color: #555; font-size: 12px;">${symItem.designation || 'Sans désignation'}</small>
                 </div>
             `;
             
