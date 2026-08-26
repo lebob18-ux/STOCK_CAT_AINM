@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.8-POPUP-SYMBOL";
+const VERSION_APP = "10-POPUP-sablier";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -15,6 +15,15 @@ let catalogueSymboleGlobal = [];
 let stockGlobal = [];
 let articleCourant = null;
 let contexteMouvement = null; // Stocke l'élément en cours de modification (Plan-Rep ou SY spécifique)
+
+function masquerLoader() {
+    let loader = document.getElementById('loaderGlobal');
+    if (loader) {
+        loader.style.opacity = '0';
+        loader.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => loader.remove(), 300);
+    }
+}
 
 window.addEventListener('DOMContentLoaded', () => {
     console.log(`%c[VERSION ACTIVE] : ${VERSION_APP}`, "background: #222; color: #bada55; padding: 4px; font-size: 14px; font-weight: bold;");
@@ -41,23 +50,23 @@ window.addEventListener('DOMContentLoaded', () => {
         fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()).catch(() => []),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ]).then(([planData, symboleData, stockSauvegarde]) => {
-        cataloguePlanGlobal = planData;
-        catalogueSymboleGlobal = symboleData;
+        cataloguePlanGlobal = planData || [];
+        catalogueSymboleGlobal = symboleData || [];
         if (stockSauvegarde) stockGlobal = JSON.parse(stockSauvegarde);
-        // 👉 Masquer le sablier une fois que tout est chargé en mémoire
-        let loader = document.getElementById('loaderGlobal');
-        if (loader) {
-            loader.style.opacity = '0';
-            loader.style.transition = 'opacity 0.3s ease';
-            setTimeout(() => loader.remove(), 300);
-        }
+    }).finally(() => {
+        masquerLoader();
     });
+
+    // 🛡️ SÉCURITÉ SUPPLÉMENTAIRE : Force la fermeture du sablier après 4 secondes max quoiqu'il arrive
+    setTimeout(() => {
+        masquerLoader();
+    }, 4000);
 
     // Écouteurs de recherche Plan + Repère
     document.getElementById('inputPlan')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
     document.getElementById('inputRep')?.addEventListener('input', () => { afficherSuggestionsPlan(); });
 
-    // Écouteur de recherche par Symbole (réintégré !)
+    // Écouteur de recherche par Symbole
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
@@ -65,7 +74,6 @@ window.addEventListener('DOMContentLoaded', () => {
         container.innerHTML = '';
         if (val.length < 1) return;
 
-        // Recherche dans le catalogue global des plans/composants correspondants au symbole saisi
         let matches = cataloguePlanGlobal.filter(item => String(item.symbole || "").toLowerCase().includes(val));
         let uniques = [...new Map(matches.map(item => [item.plan + "_" + item.rep, item])).values()].slice(0, 10);
 
@@ -138,8 +146,8 @@ function afficherFiche(article) {
 
     let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
-    let repClean = (article.rep && article.rep !== "000000") ? article.rep : "000000";
-    img.src = `${GITHUB_IMG_URL}${plan6}-${rep6.padStart(6, '0')}.jpg`;
+    let repClean = (article.rep && article.rep !== "000000") ? String(article.rep).trim().padStart(6, '0') : "000000";
+    img.src = `${GITHUB_IMG_URL}${plan6}-${repClean}.jpg`;
     img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
 
     // --- LIEUX DE STOCK PLAN-REP ---
@@ -253,7 +261,7 @@ function ouvrirModalSortieSy(composant, stockItem) {
     contexteMouvement = { type: 'SY_SORTIE', composant: composant, stockItem: stockItem };
     document.getElementById('modalTitre').textContent = `Sortie Composant SY : ${composant.symbole}`;
     document.getElementById('modalSousTitre').textContent = `Emplacement : ${stockItem.site} / ${stockItem.batiment} / ${stockItem.rang} (Dispo: ${stockItem.quantite})`;
-    document.getElementById('divTypeMvt').style.display = 'none'; // Sortie exclusive pour l'éclaté !
+    document.getElementById('divTypeMvt').style.display = 'none';
 
     document.getElementById('stockSite').value = stockItem.site;
     document.getElementById('stockBatiment').value = stockItem.batiment;
@@ -316,7 +324,7 @@ function validerMouvementStock() {
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
     fermerModal();
-    afficherFiche(articleCourant); // Rafraîchit l'affichage
+    afficherFiche(articleCourant);
     alert("✅ Mouvement enregistré avec succès !");
 }
 
