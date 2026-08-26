@@ -123,48 +123,45 @@
         <button onclick="exporterStockCSV()">📤 Exporter Stock (CSV)</button>
     </div>
 
-    <!-- RECHERCHE PAR PLAN + REPÈRE (Écran coupé en 2 avec suggestions dynamiques sur le plan) -->
+    <!-- RECHERCHE PAR PLAN + REPÈRE -->
     <div class="search-group">
         <label>Recherche par Plan et Repère :</label>
         <div style="display: flex; gap: 8px; margin-bottom: 4px;">
             <div style="flex: 1; position: relative;">
-                <!-- Champ PLAN (Pavé numérique) -->
                 <input type="text" id="inputPlan" inputmode="numeric" pattern="[0-9]*" placeholder="N° de plan (ex: 123456)">
-                
             </div>
             <div style="flex: 1;">
-                <!-- Champ REPÈRE (Pavé numérique aussi si ce sont des chiffres) -->
-            <input type="text" id="inputRep" inputmode="numeric" pattern="[0-9]*" placeholder="N° de repère (ex: 654321)">
+                <input type="text" id="inputRep" inputmode="numeric" pattern="[0-9]*" placeholder="N° de repère (ex: 654321)">
             </div>
         </div>
-        <!-- Conteneur des suggestions automatiques du plan -->
         <div id="listePlanResultats"></div>
-        
-    
     </div>
 
     <!-- RECHERCHE ALTERNATIVE PAR SYMBOLE -->
     <div class="search-group" style="margin-top: 15px;">
         <label for="inputSymbole">Ou Recherche par Symbole :</label>
-        <!-- Champ SYMBOLE / SY (Pavé numérique) -->
         <input type="text" id="inputSymbole" inputmode="numeric" pattern="[0-9]*" placeholder="Rechercher par symbole...">
         <div id="suggestions"></div>
     </div>
 
-    <!-- FICHE ARTICLE & MOUVEMENT DE STOCK (Entrée / Sortie) -->
+    <!-- FICHE ARTICLE & MOUVEMENT DE STOCK (Divisé en 2 blocs distincts) -->
     <div id="resultat" class="card" style="display: none;">
-        <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
+        
+        <!-- BLOC 1 : MINIATURE DU PLAN ET INFORMATIONS GLOBALES -->
+        <div id="blocPlanPrincipal" style="display: flex; gap: 15px; align-items: center; margin-bottom: 12px;">
             <img id="imgPiece" src="" alt="Miniature" style="width: 100px; height: 75px; object-fit: cover; border-radius: 4px; border: 1px solid #ccc; background: white;">
             <div>
                 <p style="margin: 0 0 4px 0; font-size: 14px;"><strong>Plan :</strong> <span id="resPlan"></span> | <strong>REP :</strong> <span id="resRep"></span></p>
-                <p style="margin: 0 0 4px 0; font-size: 14px;"><strong>Symbole :</strong> <span id="resSymbole"></span></p>
                 <p style="margin: 0; font-size: 13px; color: #555;" id="resIntitule"></p>
             </div>
         </div>
 
         <div id="infoStockActuel" style="margin-bottom: 12px; padding: 10px; border-radius: 4px; display: none;"></div>
 
-        <hr style="border: 0; border-top: 1px solid #ddd; margin: 12px 0;">
+        <!-- BLOC 2 : LISTE DES SYMBOLES (SY) EN DESSOUS -->
+        <div id="resSymbole" style="margin-top: 15px;"></div>
+
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 15px 0;">
 
         <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #0056b3;">Mouvement de Stock :</h4>
         
