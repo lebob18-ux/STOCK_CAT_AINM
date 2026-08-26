@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.5-TEST-2BLOCS"; // ⚠️ MODIFIE CETTE CHAÎNE À CHAQUE NOUVEL ESSAI
+const VERSION_APP = "v2.6-FIX-PLAN-SY"; // ⚠️ Numéro de version mis à jour pour test
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -38,9 +38,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 🚀 ALERTE VISUELLE DE VERSION (À supprimer à la fin des essais)
     console.log(`%c[VERSION ACTIVE] : ${VERSION_APP}`, "background: #222; color: #bada55; padding: 4px; font-size: 14px; font-weight: bold;");
     
-    // Petite popup temporaire pour vérifier sur smartphone (disparaît toute seule ou au clic)
     let bannerVersion = document.createElement('div');
-    bannerVersion.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; background: #007bff; color: white; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; z-index: 99999; box-shadow: 0 2px 5px rgba(0,0,0,0.2);";
+    bannerVersion.style.cssText = "position: fixed; top: 0; left: 0; width: 100%; background: #28a745; color: white; text-align: center; padding: 6px; font-size: 12px; font-weight: bold; z-index: 99999; box-shadow: 0 2px 5px rgba(0,0,0,0.2);";
     bannerVersion.innerHTML = `TEST ACTIF : ${VERSION_APP} <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; margin-left: 10px; cursor: pointer;" onclick="this.parentElement.remove()">Fermer [X]</span>`;
     document.body.prepend(bannerVersion);
 
@@ -112,8 +111,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (sug) sug.innerHTML = '';
             let res = document.getElementById('resultat');
             if (res) res.style.display = 'none';
-            let inputRepEl = document.getElementById('inputRep');
-            if (inputRepEl) inputRepEl.value = '';
             afficherSuggestionsPlan();
         });
     }
@@ -256,11 +253,11 @@ function afficherSuggestionsSymbole(prefixe) {
     });
 }
 
-// --- AFFICHAGE DE LA FICHE (DEUX BLOCS DISTINCTS) ---
+// --- AFFICHAGE DE LA FICHE (PLAN-REP TRAITÉ COMME UN SY DANS LE STOCK) ---
 function afficherFiche(article) {
     articleCourant = article;
 
-    // --- BLOC 1 : INFOS DU PLAN & MINIATURE ---
+    // --- BLOC 1 : INFOS DU PLAN & MINIATURE EN HAUT ---
     let resPlan     = document.getElementById('resPlan');
     let resRep      = document.getElementById('resRep');
     let resIntitule = document.getElementById('resIntitule');
@@ -282,37 +279,36 @@ function afficherFiche(article) {
     }
 
     if (img) {
-        img.style.cssText = "display: block; max-width: 100%; height: 180px; object-fit: contain; margin: 0 auto 10px auto; border-radius: 6px; border: 1px solid #ccc; background: #fff;";
         img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
-        img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22240%22%3E%3Crect width=%22320%22 height=%22240%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+        img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
     }
 
-    // Stock global du plan (Bloc 1)
-    let existants = stockGlobal.filter(item => {
+    // Stock du Plan-Repère global (traité individuellement comme un SY)
+    let existantsPlanRep = stockGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
-        let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
-        return matchPlan && matchRep;
+        let matchRep  = String(item.rep || "").trim() === String(article.rep || "").trim();
+        let matchSymb = !item.symbole || item.symbole === ""; // Uniquement les entrées directes du plan-rep
+        return matchPlan && matchRep && matchSymb;
     });
 
     let divStock = document.getElementById('infoStockActuel');
     if (divStock) {
-        if (existants.length > 0) {
+        if (existantsPlanRep.length > 0) {
             divStock.style.display         = 'block';
             divStock.style.backgroundColor = '#d4edda';
             divStock.style.border          = '1px solid #c3e6cb';
             divStock.style.color           = '#155724';
             divStock.style.padding         = '8px';
             divStock.style.borderRadius    = '4px';
-            divStock.style.marginTop       = '8px';
 
             let header = document.createElement('div');
-            header.innerHTML = `<strong>📦 EMPLACEMENTS EN STOCK POUR CE PLAN (${existants.length}) :</strong><br>` +
-                               `<p style="font-size: 12px; margin: 4px 0 6px 0;">Cliquez pour sélectionner :</p>`;
+            header.innerHTML = `<strong>📦 STOCK DU PLAN-REPÈRE (${existantsPlanRep.length}) :</strong><br>` +
+                               `<p style="font-size: 12px; margin: 4px 0 6px 0;">Cliquez pour sélectionner l'emplacement :</p>`;
 
             let liste = document.createElement('div');
             liste.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
 
-            existants.forEach(ex => {
+            existantsPlanRep.forEach(ex => {
                 let item = document.createElement('div');
                 item.style.cssText = "cursor: pointer; background: white; border: 1px solid #28a745; padding: 5px 8px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;";
                 item.innerHTML = `
@@ -333,23 +329,18 @@ function afficherFiche(article) {
             divStock.style.color           = '#856404';
             divStock.style.padding         = '8px';
             divStock.style.borderRadius    = '4px';
-            divStock.style.marginTop       = '8px';
-            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK GLOBAL :</strong> Saisissez l'emplacement pour créer le stock.`;
+            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK POUR CE PLAN-REPÈRE :</strong> Saisissez l'emplacement ci-dessous.`;
         }
     }
 
-    // --- BLOC 2 : LISTE DES SYMBOLES (SY) EN DESSOUS ---
+    // --- BLOC 2 : LISTE DES SYMBOLES (EXCLUANT LES ENSEMBLES COMPLETS) AVEC STOCK SY INDIVIDUEL ---
     let composantsPlan = cataloguePlanGlobal.filter(item => {
         let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
         let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
-        return matchPlan && matchRep;
+        // Exclusion si l'élément correspond à l'ensemble lui-même ou n'a pas de symbole éclaté valide
+        let estEnsembleComplet = String(item.symbole || "").trim() === "" || String(item.symbole || "").trim() === "0";
+        return matchPlan && matchRep && !estEnsembleComplet;
     });
-
-    if (composantsPlan.length === 0) {
-        composantsPlan = cataloguePlanGlobal.filter(item =>
-            String(item.plan || "").trim() === String(article.plan || "").trim()
-        );
-    }
 
     let conteneurComposants = document.getElementById('resSymbole');
     if (conteneurComposants) {
@@ -357,48 +348,52 @@ function afficherFiche(article) {
 
         let titreSection = document.createElement('div');
         titreSection.style.cssText = "font-size: 14px; font-weight: bold; color: #0056b3; margin: 15px 0 8px 0; border-bottom: 2px solid #0056b3; padding-bottom: 4px;";
-        titreSection.textContent = `Composition & Stock des Symboles (SY) :`;
+        titreSection.textContent = `Composition Éclatée & Stock des Symboles (SY) :`;
         conteneurComposants.appendChild(titreSection);
 
-        let wrapperCol = document.createElement('div');
-        wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
+        if (composantsPlan.length === 0) {
+            let aucunMsg = document.createElement('div');
+            aucunMsg.style.cssText = "font-size: 13px; color: #666; font-style: italic; padding: 6px;";
+            aucunMsg.textContent = "Aucun sous-symbole éclaté pour ce plan-repère.";
+            conteneurComposants.appendChild(aucunMsg);
+        } else {
+            let wrapperCol = document.createElement('div');
+            wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
 
-        composantsPlan.forEach(c => {
-            let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
-            
-            // Chercher le stock pour ce symbole précis
-            let stockSy = stockGlobal.filter(s => 
-                String(s.plan || "").trim() === String(c.plan || "").trim() &&
-                String(s.symbole || "").trim() === String(c.symbole || "").trim()
-            );
+            composantsPlan.forEach(c => {
+                let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
+                
+                // Récupération du stock existant pour CE symbole précis
+                let stockSy = stockGlobal.filter(s => 
+                    String(s.plan || "").trim() === String(c.plan || "").trim() &&
+                    String(s.symbole || "").trim() === String(c.symbole || "").trim()
+                );
 
-            let row = document.createElement('div');
-            row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px;";
+                let row = document.createElement('div');
+                row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px;";
 
-            // Miniature du symbole
-            let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
-                 onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
+                let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
+                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
 
-            // Infos du symbole, intitulé et emplacement
-            let designationTexte = c.designation || c.intitule || '';
-            let infoHtml = `<div style="flex-grow: 1; font-size: 12px;">
-                <strong style="color: #0056b3; font-size: 13px;">SY : ${c.symbole || '-'}</strong> | Qté requise : <b>${c.quantite || 1}</b><br>
-                <span style="color: #444; display: inline-block; margin: 2px 0;">${designationTexte}</span><br>`;
+                let designationTexte = c.designation || c.intitule || '';
+                let infoHtml = `<div style="flex-grow: 1; font-size: 12px;">
+                    <strong style="color: #0056b3; font-size: 13px;">SY : ${c.symbole || '-'}</strong> | Qté requise : <b>${c.quantite || 1}</b><br>
+                    <span style="color: #444; display: inline-block; margin: 2px 0;">${designationTexte}</span><br>`;
 
-            if (stockSy.length > 0) {
-                let stockDetails = stockSy.map(st => `📍 Site: <b>${st.site || 'N/A'}</b> | Bât: <b>${st.batiment || 'N/A'}</b> | Rang: <b>${st.rang || 'N/A'}</b> (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
-                infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
-            } else {
-                infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock pour ce SY</div>`;
-            }
+                if (stockSy.length > 0) {
+                    let stockDetails = stockSy.map(st => `📍 Site: <b>${st.site || 'N/A'}</b> | Bât: <b>${st.batiment || 'N/A'}</b> | Rang: <b>${st.rang || 'N/A'}</b> (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
+                    infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
+                } else {
+                    infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock pour ce SY</div>`;
+                }
 
-            infoHtml += `</div>`;
+                infoHtml += `</div>`;
+                row.innerHTML = imgHtml + infoHtml;
+                wrapperCol.appendChild(row);
+            });
 
-            row.innerHTML = imgHtml + infoHtml;
-            wrapperCol.appendChild(row);
-        });
-
-        conteneurComposants.appendChild(wrapperCol);
+            conteneurComposants.appendChild(wrapperCol);
+        }
     }
 
     // Reset des champs de saisie de stock
@@ -443,40 +438,16 @@ function validerMouvementStock() {
         return;
     }
 
-    if (typeMvt === 'SORTIE' && confirm("Confirmez-vous la sortie globale de TOUTES les pièces composant ce plan ?")) {
-        let piecesMontage = cataloguePlanGlobal.filter(item =>
-            String(item.plan || "").trim() === String(articleCourant.plan || "").trim()
-        );
-
-        if (piecesMontage.length === 0) {
-            alert("❌ Erreur : aucun composant trouvé pour ce plan dans PELICAN1.");
-            return;
-        }
-
-        for (let piece of piecesMontage) {
-            let indexStock = stockGlobal.findIndex(s =>
-                String(s.plan    || "").trim() === String(piece.plan    || "").trim() &&
-                String(s.symbole || "").trim() === String(piece.symbole || "").trim()
-            );
-            if (indexStock !== -1) {
-                stockGlobal[indexStock].quantite = Math.max(0, (parseInt(stockGlobal[indexStock].quantite) || 0) - qteDemandee);
-            }
-        }
-
-        localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-        _resetRecherche();
-        alert("✅ Sortie globale du montage effectuée avec succès !");
-        return;
-    }
-
     if (!site || !batiment || !rang) {
         alert("⚠️ Veuillez remplir tous les champs d'emplacement (Site, Bâtiment, Rang).");
         return;
     }
 
+    // Gestion du Plan-Repère comme un article/symbole individuel dans le stock
     let index = stockGlobal.findIndex(item =>
         String(item.plan      || "").trim()        === String(articleCourant.plan || "").trim() &&
         String(item.rep       || "").trim()        === String(articleCourant.rep  || "").trim() &&
+        (!item.symbole || item.symbole === "")             &&
         String(item.site      || "").toLowerCase() === site.toLowerCase()      &&
         String(item.batiment  || "").toLowerCase() === batiment.toLowerCase() &&
         String(item.rang      || "").toLowerCase() === rang.toLowerCase()
@@ -489,7 +460,7 @@ function validerMouvementStock() {
             stockGlobal.push({
                 plan:      articleCourant.plan,
                 rep:       articleCourant.rep       || "",
-                symbole:   articleCourant.symbole   || "",
+                symbole:   "", // Entrée directe sur le plan-repère
                 intitule:  articleCourant.intitule  || "",
                 site:      site,
                 batiment:  batiment,
@@ -499,7 +470,7 @@ function validerMouvementStock() {
         }
     } else {
         if (index === -1) {
-            alert("❌ Erreur : cet emplacement n'existe pas en stock.");
+            alert("❌ Erreur : cet emplacement n'existe pas en stock pour ce plan-repère.");
             return;
         }
         let currentQte = parseInt(stockGlobal[index].quantite) || 0;
@@ -511,7 +482,7 @@ function validerMouvementStock() {
     }
 
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-    _resetForcerReset(); // ou _resetRecherche
+    _resetRecherche();
     alert(typeMvt === 'ENTREE' ? "✅ Entrée de stock validée !" : "✅ Sortie de stock validée !");
 }
 
