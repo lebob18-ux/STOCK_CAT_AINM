@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.13-STOCK-SYMBOLE";
+const VERSION_APP = "v2.14 PLAN.jpg";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -170,13 +170,16 @@ function afficherFiche(article) {
     document.getElementById('resRep').textContent = article.rep === "000000" ? "Sans repère" : (article.rep || '-');
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
+    // --- MODIFICATION ICI : Appel de la miniature du plan global (6 caractères) ---
     let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
-    let repClean = (article.rep && article.rep !== "000000") ? String(article.rep).trim().padStart(6, '0') : "000000";
-    img.src = `${GITHUB_IMG_URL}${plan6}-${repClean}.jpg`;
-    img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+    img.src = `${GITHUB_IMG_URL}${plan6}.jpg`;
+    
+    img.onerror = () => { 
+        img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; 
+    };
 
-    // --- LIEUX DE STOCK PLAN-REP ---
+    // --- LE RESTE RESTE INCHANGÉ ---
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
@@ -236,7 +239,7 @@ function afficherFiche(article) {
             let designationSymbole = infoSymboleJson ? (infoSymboleJson.designation || c.intitule) : (c.designation || c.intitule);
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 90px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444;">${designationSymbole}</span>
                 </div>
