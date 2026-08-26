@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.7-FIX-PLAN-SY"; // ⚠️ Numéro de version mis à jour pour test
+const VERSION_APP = "ajout loupe sy"; // ⚠️ Numéro de version mis à jour pour test
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -545,4 +545,179 @@ function exporterStockCSV() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+}
+// --- AFFICHAGE DE LA FICHE (PLAN-REP TRAITÉ COMME UN SY DANS LE STOCK) ---
+function afficherFiche(article) {
+    articleCourant = article;
+
+    // --- BLOC 1 : INFOS DU PLAN & MINIATURE EN HAUT ---
+    let resPlan     = document.getElementById('resPlan');
+    let resRep      = document.getElementById('resRep');
+    let resIntitule = document.getElementById('resIntitule');
+    if (resPlan)     resPlan.textContent     = article.plan || '-';
+    if (resRep)      resRep.textContent      = (article.rep === "000000") ? "Sans repère" : (article.rep || '-');
+    if (resIntitule) resIntitule.textContent = article.intitule || '-';
+
+    let img = document.getElementById('imgPiece');
+    let nomImage = "";
+    let saisieSymboleActif = (document.getElementById('inputSymbole') || {value: ''}).value.trim();
+
+    if (saisieSymboleActif) {
+        nomImage = saisieSymboleActif;
+    } else if (article.plan) {
+        let plan6    = String(article.plan).trim().padStart(6, '0');
+        let repClean = (article.rep && article.rep !== "000000") ? article.rep : "000000";
+        let rep6     = String(repClean).trim().padStart(6, '0');
+        nomImage = `${plan6}-${rep6}`;
+    }
+
+    if (img) {
+        img.src = nomImage ? `${GITHUB_IMG_URL}${nomImage}.jpg` : '';
+        img.onerror = () => { img.onerror = null; img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23f0f0f0%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2216%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+    }
+
+    // Stock du Plan-Repère global (traité individuellement comme un SY)
+    let existantsPlanRep = stockGlobal.filter(item => {
+        let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+        let matchRep  = String(item.rep || "").trim() === String(article.rep || "").trim();
+        let matchSymb = !item.symbole || item.symbole === "";
+        return matchPlan && matchRep && matchSymb;
+    });
+
+    let divStock = document.getElementById('infoStockActuel');
+    if (divStock) {
+        if (existantsPlanRep.length > 0) {
+            divStock.style.display         = 'block';
+            divStock.style.backgroundColor = '#d4edda';
+            divStock.style.border          = '1px solid #c3e6cb';
+            divStock.style.color           = '#155724';
+            divStock.style.padding         = '8px';
+            divStock.style.borderRadius    = '4px';
+
+            let header = document.createElement('div');
+            header.innerHTML = `<strong>📦 STOCK DU PLAN-REPÈRE (${existantsPlanRep.length}) :</strong><br>` +
+                               `<p style="font-size: 12px; margin: 4px 0 6px 0;">Cliquez pour sélectionner l'emplacement :</p>`;
+
+            let liste = document.createElement('div');
+            liste.style.cssText = "display: flex; flex-direction: column; gap: 4px;";
+
+            existantsPlanRep.forEach(ex => {
+                let item = document.createElement('div');
+                item.style.cssText = "cursor: pointer; background: white; border: 1px solid #28a745; padding: 5px 8px; border-radius: 4px; font-size: 12px; display: flex; justify-content: space-between; align-items: center;";
+                item.innerHTML = `
+                    <div>📍 Site: <b>${ex.site || ''}</b> | Bât: <b>${ex.batiment || ''}</b> | Rang: <b>${ex.rang || ''}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 5px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite || 0}</div>
+                `;
+                item.addEventListener('click', () => selectionnerEmplacementExistant(ex));
+                liste.appendChild(item);
+            });
+
+            divStock.innerHTML = '';
+            divStock.appendChild(header);
+            divStock.appendChild(liste);
+        } else {
+            divStock.style.display         = 'block';
+            divStock.style.backgroundColor = '#fff3cd';
+            divStock.style.border          = '1px solid #ffeeba';
+            divStock.style.color           = '#856404';
+            divStock.style.padding         = '8px';
+            divStock.style.borderRadius    = '4px';
+            divStock.innerHTML = `<strong>⚠️ AUCUN STOCK POUR CE PLAN-REPÈRE :</strong> Saisissez l'emplacement ci-dessous.`;
+        }
+    }
+
+    // --- BLOC 2 : LISTE DES SYMBOLES (FERMÉ PAR DÉFAUT, OUVERT À LA DEMANDE) ---
+    let conteneurComposants = document.getElementById('resSymbole');
+    if (conteneurComposants) {
+        conteneurComposants.innerHTML = '';
+
+        // Création d'un bouton accordéon pour afficher l'éclaté à la demande
+        let boutonToggle = document.createElement('button');
+        boutonToggle.style.cssText = "width: 100%; background-color: #6c757d; color: white; border: none; padding: 10px; font-size: 13px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 5px;";
+        boutonToggle.innerHTML = "🔍 Afficher la composition éclatée (SY) & stocks";
+
+        // Conteneur interne qui sera masqué par défaut
+        let contenuEclate = document.createElement('div');
+        contenuEclate.style.cssText = "display: none; margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;";
+
+        // Filtrage des composants (excluant les ensembles complets)
+        let composantsPlan = cataloguePlanGlobal.filter(item => {
+            let matchPlan = String(item.plan || "").trim() === String(article.plan || "").trim();
+            let matchRep  = article.rep ? (String(item.rep || "").trim() === String(article.rep || "").trim()) : true;
+            let estEnsembleComplet = String(item.symbole || "").trim() === "" || String(item.symbole || "").trim() === "0";
+            return matchPlan && matchRep && !estEnsembleComplet;
+        });
+
+        if (composantsPlan.length === 0) {
+            contenuEclate.innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic; padding: 6px;">Aucun sous-symbole éclaté pour ce plan-repère.</div>';
+        } else {
+            let wrapperCol = document.createElement('div');
+            wrapperCol.style.cssText = "display: flex; flex-direction: column; gap: 8px;";
+
+            composantsPlan.forEach(c => {
+                let imgSymbUrl = c.symbole ? `${GITHUB_IMG_URL}${c.symbole}.jpg` : '';
+                
+                let cleanSyC = String(c.symbole || "").trim().toLowerCase();
+                let stockSy = stockGlobal.filter(s => {
+                    let cleanSyStock = String(s.symbole || "").trim().toLowerCase();
+                    return cleanSyStock === cleanSyC;
+                });
+
+                let row = document.createElement('div');
+                row.style.cssText = "display: flex; align-items: center; background: #f8f9fa; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; gap: 10px;";
+
+                let imgHtml = `<img src="${imgSymbUrl}" style="width: 70px; height: 50px; object-fit: contain; border-radius: 4px; border: 1px solid #ccc; background: #fff; flex-shrink: 0;"
+                     onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2270%22 height=%2250%22%3E%3Crect width=%2270%22 height=%2250%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">`;
+
+                let designationTexte = c.designation || c.intitule || '';
+                let infoHtml = `<div style="flex-grow: 1; font-size: 12px;">
+                    <strong style="color: #0056b3; font-size: 13px;">SY : ${c.symbole || '-'}</strong> | Qté requise : <b>${c.quantite || 1}</b><br>
+                    <span style="color: #444; display: inline-block; margin: 2px 0;">${designationTexte}</span><br>`;
+
+                if (stockSy.length > 0) {
+                    let stockDetails = stockSy.map(st => `📍 Site: <b>${st.site || 'N/A'}</b> | Bât: <b>${st.batiment || 'N/A'}</b> | Rang: <b>${st.rang || 'N/A'}</b> (<b>Qté: ${st.quantite || 0}</b>)`).join('<br>');
+                    infoHtml += `<div style="margin-top: 4px; background: #d4edda; color: #155724; padding: 4px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #c3e6cb;">${stockDetails}</div>`;
+                } else {
+                    infoHtml += `<div style="margin-top: 4px; background: #fff3cd; color: #856404; padding: 2px 6px; border-radius: 4px; font-size: 11px;">⚠️ Aucun stock enregistré pour ce SY</div>`;
+                }
+
+                infoHtml += `</div>`;
+                row.innerHTML = imgHtml + infoHtml;
+                wrapperCol.appendChild(row);
+            });
+
+            contenuEclate.appendChild(wrapperCol);
+        }
+
+        // Action d'ouverture / fermeture au clic sur le bouton
+        boutonToggle.addEventListener('click', () => {
+            if (contenuEclate.style.display === 'none') {
+                contenuEclate.style.display = 'block';
+                boutonToggle.style.backgroundColor = '#5a6268';
+                boutonToggle.innerHTML = "🔍 Masquer la composition éclatée (SY)";
+            } else {
+                contenuEclate.style.display = 'none';
+                boutonToggle.style.backgroundColor = '#6c757d';
+                boutonToggle.innerHTML = "🔍 Afficher la composition éclatée (SY) & stocks";
+            }
+        });
+
+        conteneurComposants.appendChild(boutonToggle);
+        conteneurComposants.appendChild(contenuEclate);
+    }
+
+    // Reset des champs de saisie de stock
+    let elSite = document.getElementById('stockSite');
+    let elBat  = document.getElementById('stockBatiment');
+    let elRang = document.getElementById('stockRang');
+    let elQte  = document.getElementById('stockQuantite');
+    let elMvt  = document.getElementById('mouvementType');
+    if (elSite) elSite.value = "";
+    if (elBat)  elBat.value  = "";
+    if (elRang) elRang.value = "";
+    if (elQte)  elQte.value  = "1";
+    if (elMvt)  elMvt.value  = "ENTREE";
+
+    let resDiv = document.getElementById('resultat');
+    if (resDiv) resDiv.style.display = 'block';
 }
