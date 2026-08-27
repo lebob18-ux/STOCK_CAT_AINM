@@ -125,104 +125,99 @@
     </style>
 </head>
 <body>
-
-<!-- Écran de chargement initial avec sablier -->
-<div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.95); z-index: 999999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: sans-serif;">
-    <div style="font-size: 50px; animation: rotationSablier 2s infinite linear;">⏳</div>
-    <div style="margin-top: 15px; font-size: 16px; font-weight: bold; color: #333;">Chargement des catalogues en cours...</div>
-    <div style="margin-top: 5px; font-size: 12px; color: #666;">Veuillez patienter quelques secondes</div>
-</div>
-
-<style>
-@keyframes rotationSablier {
-    0% { transform: rotate(0deg); }
-    50% { transform: rotate(180deg); }
-    100% { transform: rotate(360deg); }
-}
-</style>
-
-<div class="container">
-    <h2>Gestion de Stock AINM</h2>
-
-    <button id="btnInstaller" style="display:none;" onclick="installerApp()">Installer l'application</button>
-
-    <div class="toolbar">
-        <button onclick="exporterStockCSV()">📤 Exporter Stock (CSV)</button>
+    <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; justify-content: center; align-items: center; z-index: 99999;">
+        <h2>Chargement des données...</h2>
     </div>
 
-<!-- Section de Recherche (Plan et SY sur la même ligne) -->
-<div style="display: flex; gap: 10px; margin-bottom: 15px;">
-    
-    <!-- Champ Plan -->
-    <div style="flex: 1; position: relative;">
-        <label for="inputPlan" style="font-size: 12px; font-weight: bold; color: #333; display: block; margin-bottom: 4px;">N° de Plan</label>
-        <input type="text" id="inputPlan" placeholder="Ex: 123456" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
-        <!-- Conteneur des suggestions de plan -->
-        <div id="listePlanResultats" style="position: absolute; width: 100%; z-index: 1000;"></div>
-    </div>
-
-    <!-- Champ Symbole (SY) -->
-    <div style="flex: 1; position: relative;">
-        <label for="inputSymbole" style="font-size: 12px; font-weight: bold; color: #333; display: block; margin-bottom: 4px;">Symbole (SY)</label>
-        <input type="text" id="inputSymbole" placeholder="Ex: SYM01" style="width: 100%; padding: 8px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
-        <!-- Conteneur des suggestions de symboles -->
-        <div id="suggestions" style="position: absolute; width: 100%; z-index: 1000;"></div>
-    </div>
-
-</div>
-
-
-    <!-- FICHE ARTICLE -->
-    <div id="resultat" class="card" style="display: none;">
+    <div style="padding: 15px; max-width: 600px; margin: auto; font-family: sans-serif;">
         
-        <!-- BLOC 1 : MINIATURE AGRANDIE CENTRÉE + TEXTES EN DESSOUS -->
-        <div id="blocPlanPrincipal">
-            <img id="imgPiece" src="" alt="Miniature du Plan">
-            <p style="margin: 0 0 6px 0; font-size: 16px;"><strong>Plan :</strong> <span id="resPlan"></span> | <strong>REP :</strong> <span id="resRep"></span></p>
-            <p style="margin: 0; font-size: 14px; color: #555;" id="resIntitule"></p>
+        <!-- SECTION DE RECHERCHE (L'un en dessous de l'autre pour toute la largeur) -->
+        <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
+            
+            <!-- 1. Recherche ENSEMBLE -->
+            <div style="margin-bottom: 12px; position: relative;">
+                <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche ENSEMBLE (Plan / Repère) :</label>
+                <input type="text" id="inputPlan" placeholder="Ex: 12345 ou repère..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <div id="listePlanResultats" style="position: absolute; width: 100%; z-index: 1000;"></div>
+            </div>
+
+            <!-- 2. Recherche SY / SYMBOLE (Élargie aussi) -->
+            <div style="position: relative;">
+                <label style="display: block; font-weight: bold; font-size: 13px; color: #0056b3; margin-bottom: 4px;">🔍 Recherche SY / SYMBOLE :</label>
+                <input type="text" id="inputSymbole" placeholder="Ex: SY123 ou N° de plan associé..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <div id="suggestions" style="position: absolute; width: 100%; z-index: 1000;"></div>
+            </div>
+
         </div>
 
-        <!-- LIEUX DE STOCK ACTUEL DU PLAN-REPÈRE -->
-        <div id="infoStockActuel" style="margin-bottom: 12px; display: none;"></div>
+        <!-- ZONE DE RÉSULTAT / FICHE -->
+        <div id="resultat" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
+            <div style="text-align: center; margin-bottom: 15px;">
+                <span id="resPlan" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
+                <span id="resRep" style="background: #6c757d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-left: 5px;"></span>
+                <p id="resIntitule" style="font-weight: bold; font-size: 15px; margin: 10px 0 0 0; color: #222;"></p>
+            </div>
 
-        <!-- BLOC 2 : LISTE DES SYMBOLES (ÉCLATÉ) -->
-        <div id="resSymbole" style="margin-top: 15px;"></div>
+            <!-- CADRE DE LA MINIATURE PRINCIPALE -->
+            <div style="text-align: center; margin-bottom: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+                <img id="imgPiece" src="" style="max-width: 100%; height: 200px; object-fit: contain;" alt="Miniature">
+            </div>
+
+            <!-- STOCK ACTUEL -->
+            <div id="infoStockActuel" style="margin-bottom: 15px;"></div>
+
+            <!-- COMPOSITION ÉCLATÉE (SY) -->
+            <div id="resSymbole"></div>
+        </div>
+
+        <!-- BOUTONS ACTIONS GLOBALES -->
+        <div style="margin-top: 15px; display: flex; gap: 10px;">
+            <button type="button" onclick="exporterStockCSV()" style="background: #17a2b8; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1;">📥 Exporter Stock CSV</button>
+            <button type="button" id="btnInstaller" style="background: #ffc107; color: #212529; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; display: none; font-weight: bold; flex: 1;">📱 Installer l'app</button>
+        </div>
+
     </div>
 
-</div>
+    <!-- MODALE UNIQUE DE GESTION DE STOCK -->
+    <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 99999;">
+        <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            <h3 id="modalTitre" style="margin-top: 0; color: #0056b3; font-size: 16px;"></h3>
+            <p id="modalSousTitre" style="font-size: 12px; color: #666; margin-bottom: 15px;"></p>
+            
+            <div id="divTypeMvt" style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Type de mouvement :</label>
+                <select id="mouvementType" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="ENTREE">➕ Entrée / Ajout</option>
+                    <option value="SORTIE">➖ Sortie / Retrait</option>
+                </select>
+            </div>
 
-<!-- POPUP MODALE CENTRALE POUR MOUVEMENT DE STOCK -->
-<div id="modalOverlay">
-    <div id="modalContent">
-        <h3 id="modalTitre" style="margin-top: 0; color: #0056b3; font-size: 16px;">Mouvement de Stock</h3>
-        <p id="modalSousTitre" style="font-size: 12px; color: #555; margin-bottom: 12px;"></p>
-        
-        <div style="margin-bottom: 10px;" id="divTypeMvt">
-            <label style="font-size: 12px;">Type de mouvement :</label>
-            <select id="mouvementType">
-                <option value="ENTREE">➕ Entrée (Ajouter)</option>
-                <option value="SORTIE">➖ Sortie (Retirer)</option>
-            </select>
-        </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Site :</label>
+                <input type="text" id="stockSite" placeholder="Ex: Dépôt..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
 
-        <div style="display: flex; gap: 6px; margin-bottom: 10px;">
-            <div style="flex: 1;"><label style="font-size: 11px;">Site :</label><input type="text" id="stockSite" style="padding: 6px; font-size: 14px;"></div>
-            <div style="flex: 1;"><label style="font-size: 11px;">Bât :</label><input type="text" id="stockBatiment" style="padding: 6px; font-size: 14px;"></div>
-            <div style="flex: 1;"><label style="font-size: 11px;">Rang :</label><input type="text" id="stockRang" style="padding: 6px; font-size: 14px;"></div>
-        </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Bâtiment :</label>
+                <input type="text" id="stockBatiment" placeholder="Ex: Bât A..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
 
-        <div style="margin-bottom: 15px;">
-            <label style="font-size: 12px;">Quantité :</label>
-            <input type="number" id="stockQuantite" value="1" min="1" style="padding: 6px; font-size: 14px;">
-        </div>
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Rang / Étagère :</label>
+                <input type="text" id="stockRang" placeholder="Ex: R3..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
 
-        <div style="display: flex; gap: 8px;">
-            <button type="button" onclick="fermerModal()" style="flex: 1; background: #6c757d; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer;">Annuler</button>
-            <button type="button" onclick="validerMouvementStock()" style="flex: 1; background: #28a745; color: white; border: none; padding: 10px; border-radius: 4px; cursor: pointer; font-weight: bold;">Valider</button>
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Quantité :</label>
+                <input type="number" id="stockQuantite" value="1" min="1" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="validerMouvementStock()" style="background: #28a745; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1; font-weight: bold;">Valider</button>
+                <button type="button" onclick="fermerModal()" style="background: #6c757d; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1;">Annuler</button>
+            </div>
         </div>
     </div>
-</div>
 
-<script src="script.js"></script>
 </body>
 </html>
