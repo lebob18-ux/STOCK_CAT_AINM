@@ -1,4 +1,4 @@
-const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 13-45";
+const VERSION_APP = "20-ENSEMBLE-SY-19-44";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -125,18 +125,24 @@ window.addEventListener('DOMContentLoaded', () => {
         let inputPln = document.getElementById('inputPlan');
         if (inputPln) inputPln.value = '';
 
-        let matchesSym = catalogueSymboleGlobal.filter(item => 
+let matchesSym = catalogueSymboleGlobal.filter(item => 
             String(item.symbole || "").toLowerCase().includes(val) || 
             String(item.plan || "").toLowerCase().includes(val) || 
             String(item.designation || "").toLowerCase().includes(val)
-        ).map(item => ({
-            type: 'SYM',
-            titre: `SY : ${item.symbole}`,
-            sousTitre: item.designation || 'Sans désignation',
-            codeImage: item.symbole,
-            planAssocie: item.plan,
-            donneeBrute: item
-        }));
+        ).map(item => {
+            // Recherche de l'intitulé propre au SY dans le JSON ou l'item
+            let infoJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(item.symbole || "").trim().toLowerCase());
+            let intitulePropre = (infoJson ? (infoJson.designation || infoJson.intitule) : "") || item.designation || item.intitule || 'Sans désignation';
+
+            return {
+                type: 'SYM',
+                titre: `SY : ${item.symbole}`,
+                sousTitre: intitulePropre,
+                codeImage: item.symbole,
+                planAssocie: item.plan,
+                donneeBrute: { ...item, designation: intitulePropre }
+            };
+        });
 
         let matches = matchesSym.slice(0, 10);
 
