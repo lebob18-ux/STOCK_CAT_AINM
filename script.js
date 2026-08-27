@@ -1,4 +1,4 @@
-const VERSION_APP = "16-ENSEMBLE-SY";
+const VERSION_APP = "17-ENSEMBLE-SY-intitul";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -263,13 +263,16 @@ function afficherFiche(article) {
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
             
+// Recherche de la désignation propre du composant SY dans le mapping ou le catalogue
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
-            let designationSymbole = infoSymboleJson ? (infoSymboleJson.designation || c.intitule) : (c.designation || c.intitule);
+            
+            // Priorité : 1. Désignation du mapping JSON, 2. Désignation propre du composant, 3. Intitulé du composant, et en dernier recours l'intitulé global si rien d'autre n'existe
+            let designationPiece = (infoSymboleJson && infoSymboleJson.designation) ? infoSymboleJson.designation : (c.designation || c.intitule);
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
-                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444;">${designationSymbole}</span>
+                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444; font-weight: 500;">${designationPiece}</span>
                 </div>
             </div>`;
 
