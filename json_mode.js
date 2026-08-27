@@ -59,7 +59,6 @@ window.addEventListener('DOMContentLoaded', () => {
             let matches = catalogueSymboleGlobal.filter(item => 
                 String(item.symbole || "").toLowerCase().includes(val) || 
                 String(item.plan || "").toLowerCase().includes(val) || 
-                String(item.designation || "").toLowerCase().includes(val)
             ).slice(0, 10);
 
             if (matches.length === 0) {
