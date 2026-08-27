@@ -1,4 +1,4 @@
-const VERSION_APP = "20-ENSEMBLE-SY-21-49";
+const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 22-00";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -114,79 +114,64 @@ window.addEventListener('DOMContentLoaded', () => {
         afficherSuggestionsPlan(); 
     });
 
-    let timeoutSymbole = null;
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         reinitialiserFicheEtSaisies();
-        clearTimeout(timeoutSymbole);
-        
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
         if (!container) return;
-        
-        if (val.length < 1) {
-            container.innerHTML = '';
+        container.innerHTML = '';
+        if (val.length < 1) return;
+
+        let inputPln = document.getElementById('inputPlan');
+        if (inputPln) inputPln.value = '';
+
+        let matchesSym = catalogueSymboleGlobal.filter(item => 
+            String(item.symbole || "").toLowerCase().includes(val) || 
+            String(item.plan || "").toLowerCase().includes(val) || 
+            String(item.designation || "").toLowerCase().includes(val)
+        ).map(item => ({
+            type: 'SYM',
+            titre: `SY : ${item.symbole}`,
+            sousTitre: item.designation || 'Sans désignation',
+            codeImage: item.symbole,
+            planAssocie: item.plan,
+            donneeBrute: item
+        }));
+
+        let matches = matchesSym.slice(0, 10);
+
+        if (matches.length === 0) {
+            container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun résultat trouvé dans le JSON</div>';
             return;
         }
 
-        timeoutSymbole = setTimeout(() => {
-            let inputPln = document.getElementById('inputPlan');
-            if (inputPln) inputPln.value = '';
-
-            let matchesSym = catalogueSymboleGlobal.filter(item => 
-                String(item.symbole || "").toLowerCase().includes(val) || 
-                String(item.plan || "").toLowerCase().includes(val) || 
-                String(item.designation || "").toLowerCase().includes(val) ||
-                String(item.intitule || "").toLowerCase().includes(val)
-            ).map(item => {
-                let correspondanceExcel = cataloguePlanGlobal.find(p => String(p.symbole || "").trim().toLowerCase() === String(item.symbole || "").trim().toLowerCase());
-                let intitulePropre = (correspondanceExcel ? correspondanceExcel.designation : "") || item.designation || item.intitule || 'Sans désignation';
-                
-                return {
-                    type: 'SYM',
-                    titre: `SY : ${item.symbole}`,
-                    sousTitre: intitulePropre,
-                    codeImage: item.symbole,
-                    planAssocie: item.plan,
-                    donneeBrute: { ...item, designation: intitulePropre, plan: correspondanceExcel ? correspondanceExcel.plan : item.plan }
-                };
-            });
-
-            let matches = matchesSym.slice(0, 10);
-            container.innerHTML = '';
-
-            if (matches.length === 0) {
-                container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun résultat trouvé dans le JSON</div>';
-                return;
-            }
-
-            let wrapper = document.createElement('div');
-            wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+        let wrapper = document.createElement('div');
+        wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+        
+        matches.forEach(match => {
+            let div = document.createElement('div');
+            div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
             
-            matches.forEach(match => {
-                let div = document.createElement('div');
-                div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
-                
-                let imgUrl = `${GITHUB_IMG_URL}${match.codeImage}.jpg`;
+            let imgUrl = `${GITHUB_IMG_URL}${match.codeImage}.jpg`;
 
-                div.innerHTML = `
-                    <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
-                    <div style="flex-grow: 1;">
-                        <strong style="font-size: 14px; color: #0056b3;">${match.titre}</strong><br><small style="color: #555; font-size: 12px;">${match.sousTitre}</small>
-                    </div>
-                `;
-                
-                div.addEventListener('click', () => {
-                    container.innerHTML = '';
-                    let inputPln = document.getElementById('inputPlan');
-                    if (inputPln) inputPln.value = '';
+            div.innerHTML = `
+                <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
+                <div style="flex-grow: 1;">
+                    <strong style="font-size: 14px; color: #0056b3;">${match.titre}</strong><br><small style="color: #555; font-size: 12px;">${match.sousTitre}</small>
+                </div>
+            `;
+            
+            div.addEventListener('click', () => {
+                container.innerHTML = '';
+                let inputPln = document.getElementById('inputPlan');
+                if (inputPln) inputPln.value = '';
 
-                    document.getElementById('inputSymbole').value = match.donneeBrute.symbole;
-                    afficherFicheSymboleSeul(match.donneeBrute);
-                });
-                wrapper.appendChild(div);
+                document.getElementById('inputSymbole').value = match.donneeBrute.symbole;
+                afficherFicheSymboleSeul(match.donneeBrute);
             });
-            container.appendChild(wrapper);
-        }, 300);
+            wrapper.appendChild(div);
+        });
+        container.appendChild(wrapper);
     });
 });
 
@@ -255,7 +240,8 @@ function afficherFiche(article) {
 
     if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
-            htmlStock += `<div onclick='ouvrirModalPlanRep(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+            let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+            htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                 <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
             </div>`;
@@ -295,15 +281,11 @@ function afficherFiche(article) {
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
             let intituleSy = (infoSymboleJson ? (infoSymboleJson.designation || infoSymboleJson.intitule) : "") || c.designation || "Sans intitulé";
 
-            let objetComposantTransmissible = {
-                symbole: c.symbole,
-                plan: c.plan,
-                designation: intituleSy,
-                intitule: intituleSy
-            };
+            let infoSymObj = infoSymboleJson || {symbole: c.symbole, plan: c.plan, designation: intituleSy};
+            let infoSymStr = JSON.stringify(infoSymObj).replace(/"/g, '&quot;');
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" onclick='afficherFicheSymboleSeul(${JSON.stringify(objetComposantTransmissible)})' style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff; cursor: pointer;" title="Voir la fiche de ce symbole" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" onclick="afficherFicheSymboleSeul(${infoSymStr})" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff; cursor: pointer;" title="Voir la fiche de ce symbole" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
@@ -313,7 +295,9 @@ function afficherFiche(article) {
             if (stockSy.length > 0) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
-                    htmlSy += `<div onclick='ouvrirModalSortieSy(${JSON.stringify(c)}, ${JSON.stringify(st)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
+                    let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
+                    let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
+                    htmlSy += `<div onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
                         <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
                         <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">➖ Sortie</span>
                     </div>`;
@@ -343,9 +327,9 @@ function afficherFicheSymboleSeul(symItem) {
         String(item.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase()
     );
 
-    let numPlan = symItem.plan || (correspondanceExcel ? correspondanceExcel.plan : "-");
+    let numPlan = correspondanceExcel ? correspondanceExcel.plan : (symItem.planAssocie || "-");
     let numSy = symItem.symbole || "-";
-    let intituleTexte = symItem.designation || symItem.intitule || (correspondanceExcel ? correspondanceExcel.intitule : "Sans intitulé");
+    let intituleTexte = correspondanceExcel ? correspondanceExcel.intitule : (symItem.designation || symItem.intitule || "Sans intitulé");
 
     articleCourant = { plan: numPlan, rep: numSy, intitule: intituleTexte, symbole: numSy };
     
@@ -382,7 +366,8 @@ function afficherFicheSymboleSeul(symItem) {
 
         if (existantsSym.length > 0) {
             existantsSym.forEach(ex => {
-                htmlStock += `<div onclick='ouvrirModalStockSymbole(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+                htmlStock += `<div onclick="ouvrirModalStockSymbole(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
                     <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                     <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
                 </div>`;
