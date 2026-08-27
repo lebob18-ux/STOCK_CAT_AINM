@@ -12,43 +12,63 @@
 
     <div style="padding: 15px; max-width: 600px; margin: auto; font-family: sans-serif;">
         
-        <!-- SECTION DE RECHERCHE (L'un en dessous de l'autre pour toute la largeur) -->
-        <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
-            
-            <!-- 1. Recherche ENSEMBLE -->
-            <div style="margin-bottom: 12px; position: relative;">
-                <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche ENSEMBLE (Plan / Repère) :</label>
-                <input type="text" id="inputPlan" placeholder="Ex: 12345 ou repère..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-                <div id="listePlanResultats" style="position: absolute; width: 100%; z-index: 1000;"></div>
-            </div>
-
-            <!-- 2. Recherche SY / SYMBOLE (Élargie aussi) -->
-            <div style="position: relative;">
-                <label style="display: block; font-weight: bold; font-size: 13px; color: #0056b3; margin-bottom: 4px;">🔍 Recherche SY / SYMBOLE :</label>
-                <input type="text" id="inputSymbole" placeholder="Ex: SY123 ou N° de plan associé..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-                <div id="suggestions" style="position: absolute; width: 100%; z-index: 1000;"></div>
-            </div>
-
+        <!-- ONGLETS DE NAVIGATION -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <button type="button" onclick="changerOnglet('pelican')" id="btnTabPelican" style="flex: 1; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">📦 Recherche Pelican (Ensembles)</button>
+            <button type="button" onclick="changerOnglet('json')" id="btnTabJson" style="flex: 1; padding: 12px; background: #e9ecef; color: #333; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🔍 Recherche SY (JSON)</button>
         </div>
 
-        <!-- ZONE DE RÉSULTAT / FICHE -->
-        <div id="resultat" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
-            <div style="text-align: center; margin-bottom: 15px;">
-                <span id="resPlan" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
-                <span id="resRep" style="background: #6c757d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-left: 5px;"></span>
-                <p id="resIntitule" style="font-weight: bold; font-size: 15px; margin: 10px 0 0 0; color: #222;"></p>
+        <!-- ONGLET 1 : PELICAN (Ensembles) -->
+        <div id="ongletPelican" style="display: block;">
+            <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
+                <div style="position: relative;">
+                    <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche ENSEMBLE (Plan / Repère) :</label>
+                    <input type="text" id="inputPlan" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 12345..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    <div id="listePlanResultats" style="position: absolute; left: 0; right: 0; z-index: 1000;"></div>
+                </div>
             </div>
 
-            <!-- CADRE DE LA MINIATURE PRINCIPALE -->
-            <div style="text-align: center; margin-bottom: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
-                <img id="imgPiece" src="" style="max-width: 100%; height: 200px; object-fit: contain;" alt="Miniature">
+            <!-- ZONE DE RÉSULTAT / FICHE PELICAN -->
+            <div id="resultat" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span id="resPlan" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
+                    <span id="resRep" style="background: #6c757d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-left: 5px;"></span>
+                    <p id="resIntitule" style="font-weight: bold; font-size: 15px; margin: 10px 0 0 0; color: #222;"></p>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+                    <img id="imgPiece" src="" style="max-width: 100%; height: 200px; object-fit: contain;" alt="Miniature">
+                </div>
+
+                <div id="infoStockActuel" style="margin-bottom: 15px;"></div>
+                <div id="resSymbole"></div>
+            </div>
+        </div>
+
+        <!-- ONGLET 2 : JSON / SYMBOLES -->
+        <div id="ongletJson" style="display: none;">
+            <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
+                <div style="position: relative;">
+                    <label style="display: block; font-weight: bold; font-size: 13px; color: #0056b3; margin-bottom: 4px;">🔍 Recherche SY / SYMBOLE :</label>
+                    <input type="text" id="inputSymboleJson" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 123..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                    <div id="suggestionsJson" style="position: absolute; left: 0; right: 0; z-index: 1000;"></div>
+                </div>
             </div>
 
-            <!-- STOCK ACTUEL -->
-            <div id="infoStockActuel" style="margin-bottom: 15px;"></div>
+            <!-- ZONE DE RÉSULTAT / FICHE JSON -->
+            <div id="resultatJson" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
+                <div style="text-align: center; margin-bottom: 15px;">
+                    <span id="resPlanJson" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
+                    <span id="resRepJson" style="background: #6c757d; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; margin-left: 5px;"></span>
+                    <p id="resIntituleJson" style="font-weight: bold; font-size: 15px; margin: 10px 0 0 0; color: #222;"></p>
+                </div>
 
-            <!-- COMPOSITION ÉCLATÉE (SY) -->
-            <div id="resSymbole"></div>
+                <div style="text-align: center; margin-bottom: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; padding: 10px;">
+                    <img id="imgPieceJson" src="" style="max-width: 100%; height: 200px; object-fit: contain;" alt="Miniature Symbole">
+                </div>
+
+                <div id="infoStockActuelJson" style="margin-bottom: 15px;"></div>
+            </div>
         </div>
 
         <!-- BOUTONS ACTIONS GLOBALES -->
@@ -59,7 +79,7 @@
 
     </div>
 
-    <!-- MODALE UNIQUE DE GESTION DE STOCK -->
+    <!-- MODALE STOCK (PELICAN) -->
     <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 99999;">
         <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
             <h3 id="modalTitre" style="margin-top: 0; color: #0056b3; font-size: 16px;"></h3>
@@ -75,22 +95,22 @@
 
             <div style="margin-bottom: 10px;">
                 <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Site :</label>
-                <input type="text" id="stockSite" placeholder="Ex: Dépôt..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <input type="text" id="stockSite" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 1..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 10px;">
                 <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Bâtiment :</label>
-                <input type="text" id="stockBatiment" placeholder="Ex: Bât A..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <input type="text" id="stockBatiment" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 2..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 10px;">
                 <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Rang / Étagère :</label>
-                <input type="text" id="stockRang" placeholder="Ex: R3..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <input type="text" id="stockRang" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 3..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Quantité :</label>
-                <input type="number" id="stockQuantite" value="1" min="1" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+                <input type="number" id="stockQuantite" value="1" min="1" inputmode="numeric" pattern="[0-9]*" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
             </div>
 
             <div style="display: flex; gap: 10px;">
@@ -100,15 +120,70 @@
         </div>
     </div>
 
-    <!-- SCRIPTS REQUIS -->
-    <!-- 1. Bibliothèque SheetJS pour lire le fichier Excel PELICAN1.xlsx -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
-    <!-- 2. Ton script principal
-    <script src="script.js"></script>-->
-    
+    <!-- MODALE STOCK (JSON) -->
+    <div id="modalOverlayJson" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 99999;">
+        <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
+            <h3 id="modalTitreJson" style="margin-top: 0; color: #0056b3; font-size: 16px;"></h3>
+            <p id="modalSousTitreJson" style="font-size: 12px; color: #666; margin-bottom: 15px;"></p>
+            
+            <input type="hidden" id="mouvementTypeJson" value="ENTREE">
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Site :</label>
+                <input type="text" id="stockSiteJson" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 1..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Bâtiment :</label>
+                <input type="text" id="stockBatimentJson" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 2..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Rang / Étagère :</label>
+                <input type="text" id="stockRangJson" inputmode="numeric" pattern="[0-9]*" placeholder="Ex: 3..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="margin-bottom: 15px;">
+                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Quantité :</label>
+                <input type="number" id="stockQuantiteJson" value="1" min="1" inputmode="numeric" pattern="[0-9]*" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="validerMouvementStockJson()" style="background: #28a745; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1; font-weight: bold;">Valider</button>
+                <button type="button" onclick="fermerModalJson()" style="background: #6c757d; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1;">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPTS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="pelican.js"></script>
     <script src="json_mode.js"></script>
+
+    <!-- SCRIPT DE BASCULE DES ONGLETS -->
+    <script>
+        function changerOnglet(nomOnglet) {
+            let ongletPelican = document.getElementById('ongletPelican');
+            let ongletJson = document.getElementById('ongletJson');
+            let btnPelican = document.getElementById('btnTabPelican');
+            let btnJson = document.getElementById('btnTabJson');
+
+            if (nomOnglet === 'pelican') {
+                ongletPelican.style.display = 'block';
+                ongletJson.style.display = 'none';
+                btnPelican.style.background = '#0056b3';
+                btnPelican.style.color = 'white';
+                btnJson.style.background = '#e9ecef';
+                btnJson.style.color = '#333';
+            } else {
+                ongletPelican.style.display = 'none';
+                ongletJson.style.display = 'block';
+                btnJson.style.background = '#0056b3';
+                btnJson.style.color = 'white';
+                btnPelican.style.background = '#e9ecef';
+                btnPelican.style.color = '#333';
+            }
+        }
+    </script>
 </body>
 </html>
