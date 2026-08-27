@@ -25,58 +25,74 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    Promise.all([
-        fetch(GITHUB_BASE_URL + 'mapping.json').then(res => res.json()).catch(() => []),
-        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
-    ]).then(([symboleData, stockSauvegarde]) => {
-        catalogueSymboleGlobal = symboleData || [];
-        if (stockSauvegarde) stockGlobalJson = JSON.parse(stockSauvegarde);
-    });
-
-    document.getElementById('inputSymboleJson')?.addEventListener('input', (e) => {
-        reinitialiserFicheJson();
-        let val = e.target.value.toLowerCase().trim();
-        let container = document.getElementById('suggestionsJson');
-        if (!container) return;
-        container.innerHTML = '';
-        if (val.length < 1) return;
-
-        let matches = catalogueSymboleGlobal.filter(item => 
-            String(item.symbole || "").toLowerCase().includes(val) || 
-            String(item.plan || "").toLowerCase().includes(val) || 
-            String(item.designation || "").toLowerCase().includes(val)
-        ).slice(0, 10);
-
-        if (matches.length === 0) {
-            container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun résultat trouvé dans le JSON</div>';
-            return;
-        }
-
-        let wrapper = document.createElement('div');
-        wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
-        
-        matches.forEach(item => {
-            let div = document.createElement('div');
-            div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
-            
-            let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
-
-            div.innerHTML = `
-                <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
-                <div style="flex-grow: 1;">
-                    <strong style="font-size: 14px; color: #0056b3;">SY : ${item.symbole}</strong> | Plan : ${item.plan || '-'}<br><small style="color: #555; font-size: 12px;">${item.designation || 'Sans désignation'}</small>
-                </div>
-            `;
-            
-            div.addEventListener('click', () => {
-                container.innerHTML = '';
-                document.getElementById('inputSymboleJson').value = item.symbole;
-                afficherFicheSymboleJson(item);
-            });
-            wrapper.appendChild(div);
+    // Chargement avec catalogue de secours intégré si le fetch échoue
+    fetch(GITHUB_BASE_URL + 'mapping.json')
+        .then(res => {
+            if (!res.ok) throw new Error("Erreur réseau");
+            return res.json();
+        })
+        .then(data => {
+            catalogueSymboleGlobal = data || [];
+        })
+        .catch(err => {
+            console.warn("⚠️ Impossible de charger mapping.json distant, utilisation d'un catalogue de secours", err);
+            catalogueSymboleGlobal = [
+                { symbole: "123", plan: "P100", designation: "Exemple de symbole test de secours" }
+            ];
         });
-        container.appendChild(wrapper);
-    });
+
+    let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
+    if (stockSauvegarde) {
+        try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
+    }
+
+    let inputSymbole = document.getElementById('inputSymboleJson');
+    if (inputSymbole) {
+        inputSymbole.addEventListener('input', (e) => {
+            reinitialiserFicheJson();
+            let val = e.target.value.toLowerCase().trim();
+            let container = document.getElementById('suggestionsJson');
+            if (!container) return;
+            container.innerHTML = '';
+            if (val.length < 1) return;
+
+            let matches = catalogueSymboleGlobal.filter(item => 
+                String(item.symbole || "").toLowerCase().includes(val) || 
+                String(item.plan || "").toLowerCase().includes(val) || 
+                String(item.designation || "").toLowerCase().includes(val)
+            ).slice(0, 10);
+
+            if (matches.length === 0) {
+                container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun résultat trouvé dans le JSON</div>';
+                return;
+            }
+
+            let wrapper = document.createElement('div');
+            wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+            
+            matches.forEach(item => {
+                let div = document.createElement('div');
+                div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
+                
+                let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+
+                div.innerHTML = `
+                    <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
+                    <div style="flex-grow: 1;">
+                        <strong style="font-size: 14px; color: #0056b3;">SY : ${item.symbole}</strong> | Plan : ${item.plan || '-'}<br><small style="color: #555; font-size: 12px;">${item.designation || 'Sans désignation'}</small>
+                    </div>
+                `;
+                
+                div.addEventListener('click', () => {
+                    container.innerHTML = '';
+                    document.getElementById('inputSymboleJson').value = item.symbole;
+                    afficherFicheSymboleJson(item);
+                });
+                wrapper.appendChild(div);
+            });
+            container.appendChild(wrapper);
+        });
+    }
 });
 
 function reinitialiserFicheJson() {
