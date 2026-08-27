@@ -1,13 +1,19 @@
-const VERSION_APP_JSON = "JSON-ONGLET-V1";
-const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
-const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+if (typeof VERSION_APP_JSON === 'undefined') {
+    var VERSION_APP_JSON = "JSON-ONGLET-V1";
+}
+if (typeof GITHUB_BASE_URL === 'undefined') {
+    var GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
+}
+if (typeof GITHUB_IMG_URL === 'undefined') {
+    var GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+}
 
-let catalogueSymboleGlobal = [];
-let stockGlobalJson = [];
-let articleCourantJson = null;
-let contexteMouvementJson = null;
-let dernierSiteSaisiJson = '';
-let dernierBatimentSaisiJson = '';
+if (typeof catalogueSymboleGlobal === 'undefined') { var catalogueSymboleGlobal = []; }
+if (typeof stockGlobalJson === 'undefined') { var stockGlobalJson = []; }
+if (typeof articleCourantJson === 'undefined') { var articleCourantJson = null; }
+if (typeof contexteMouvementJson === 'undefined') { var contexteMouvementJson = null; }
+if (typeof dernierSiteSaisiJson === 'undefined') { var dernierSiteSaisiJson = ''; }
+if (typeof dernierBatimentSaisiJson === 'undefined') { var dernierBatimentSaisiJson = ''; }
 
 window.addEventListener('DOMContentLoaded', () => {
     console.log(`%c[JSON MODE] : ${VERSION_APP_JSON}`, "background: #28a745; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
