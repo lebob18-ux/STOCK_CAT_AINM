@@ -52,7 +52,7 @@ window.addEventListener('DOMContentLoaded', () => {
             container.innerHTML = '';
             if (val.length < 1) return;
 
-            // Filtre uniquement sur symbole et plan (pas designation)
+            // Filtre uniquement sur symbole et plan
             let matches = catalogueSymboleGlobal.filter(item =>
                 String(item.symbole || "").toLowerCase().includes(val) ||
                 String(item.plan || "").toLowerCase().includes(val)
@@ -82,7 +82,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
                 div.addEventListener('mouseover', () => div.style.background = '#f1f8ff');
                 div.addEventListener('mouseout',  () => div.style.background = 'white');
-                // FIX apostrophe : addEventListener au lieu de onclick inline
                 div.addEventListener('click', () => {
                     container.innerHTML = '';
                     document.getElementById('inputSymboleJson').value = item.symbole;
@@ -114,8 +113,8 @@ function reinitialiserFicheJson() {
 function afficherFicheSymboleJson(symItem) {
     articleCourantJson = symItem;
 
-    let numPlan      = symItem.plan        || "-";
-    let numSy        = symItem.symbole     || "-";
+    let numPlan     = symItem.plan        || "-";
+    let numSy       = symItem.symbole     || "-";
     let intituleTexte = symItem.designation || "Sans intitulé";
 
     document.getElementById('resPlanJson').textContent    = numPlan;
@@ -157,7 +156,6 @@ function afficherFicheSymboleJson(symItem) {
 
         if (existantsSym.length > 0) {
             existantsSym.forEach(ex => {
-                // FIX apostrophe : construction DOM au lieu de onclick inline
                 let ligne = document.createElement('div');
                 ligne.style.cssText = "cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;";
                 ligne.innerHTML = `
@@ -186,9 +184,9 @@ function ouvrirModalStockSymboleJson(existant) {
     document.getElementById('modalSousTitreJson').textContent = `Symbole : ${articleCourantJson.symbole}`;
 
     document.getElementById('mouvementTypeJson').value   = 'ENTREE';
-    document.getElementById('stockSiteJson').value       = existant ? existant.site     : (dernierSiteSaisiJson     || '');
+    document.getElementById('stockSiteJson').value        = existant ? existant.site     : (dernierSiteSaisiJson       || '');
     document.getElementById('stockBatimentJson').value   = existant ? existant.batiment : (dernierBatimentSaisiJson || '');
-    document.getElementById('stockRangJson').value       = existant ? existant.rang     : '';
+    document.getElementById('stockRangJson').value        = existant ? existant.rang     : '';
     document.getElementById('stockQuantiteJson').value   = '1';
 
     document.getElementById('modalOverlayJson').style.display = 'flex';
@@ -208,16 +206,16 @@ function validerMouvementStockJson() {
     let rang     = document.getElementById('stockRangJson').value.trim();
     let typeMvt  = document.getElementById('mouvementTypeJson').value;
 
-    if (qte <= 0)                      { alert("Quantité invalide");                           return; }
+    if (qte <= 0)                      { alert("Quantité invalide");                         return; }
     if (!site || !batiment || !rang)   { alert("Remplissez tous les champs d'emplacement.");   return; }
 
-    dernierSiteSaisiJson     = site;
+    dernierSiteSaisiJson       = site;
     dernierBatimentSaisiJson = batiment;
 
     let index = stockGlobalJson.findIndex(item =>
         String(item.symbole  || "").trim().toLowerCase() === String(articleCourantJson.symbole || "").trim().toLowerCase() &&
         (!item.plan || item.plan === "SYMB" || item.plan === articleCourantJson.plan) &&
-        String(item.site     || "").toLowerCase() === site.toLowerCase()     &&
+        String(item.site     || "").toLowerCase() === site.toLowerCase()      &&
         String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
         String(item.rang     || "").toLowerCase() === rang.toLowerCase()
     );
@@ -227,8 +225,8 @@ function validerMouvementStockJson() {
             stockGlobalJson[index].quantite = (parseInt(stockGlobalJson[index].quantite) || 0) + qte;
         } else {
             stockGlobalJson.push({
-                plan:     articleCourantJson.plan        || "SYMB",
-                rep:      "",
+                plan:      articleCourantJson.plan        || "SYMB",
+                rep:        "",
                 symbole:  articleCourantJson.symbole,
                 intitule: articleCourantJson.designation || "",
                 site, batiment, rang,
