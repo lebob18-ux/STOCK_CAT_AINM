@@ -72,7 +72,7 @@ window.addEventListener('DOMContentLoaded', () => {
                          onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
                     <div style="flex-grow: 1;">
                         <strong style="font-size: 14px; color: #0056b3;">SY : ${item.symbole}</strong> | Plan : ${item.plan || '-'}<br>
-                        <span style="font-size: 12px; color: #222; font-weight: 600;">${item.designation || 'Sans désignation'}</span>
+                        <span style="font-size: 12px; color: #222; font-weight: 600;">${item.intitule || 'Sans désignation'}</span>
                     </div>
                 `;
 
@@ -112,7 +112,7 @@ function afficherFicheSymboleJson(symItem) {
 
     let numPlan      = symItem.plan        || "-";
     let numSy        = symItem.symbole     || "-";
-    let intituleTexte = symItem.designation || "Sans intitulé";
+    let intituleTexte = symItem.intitule || "Sans intitulé";
 
     document.getElementById('resPlanJson').textContent     = `Plan : ${numPlan}`;
     document.getElementById('resRepJson').textContent      = `SY : ${numSy}`;
@@ -226,7 +226,7 @@ function validerMouvementStockJson() {
                 plan:     articleCourantJson.plan        || "SYMB",
                 rep:      "",
                 symbole:  articleCourantJson.symbole,
-                intitule: articleCourantJson.designation || "",
+                intitule: articleCourantJson.intitule || "",
                 site, batiment, rang,
                 quantite: qte
             });
