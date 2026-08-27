@@ -1,4 +1,4 @@
-const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 22-00";
+const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 13-45";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -240,8 +240,7 @@ function afficherFiche(article) {
 
     if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
-            let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-            htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+            htmlStock += `<div onclick='ouvrirModalPlanRep(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                 <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
             </div>`;
@@ -281,11 +280,8 @@ function afficherFiche(article) {
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
             let intituleSy = (infoSymboleJson ? (infoSymboleJson.designation || infoSymboleJson.intitule) : "") || c.designation || "Sans intitulé";
 
-            let infoSymObj = infoSymboleJson || {symbole: c.symbole, plan: c.plan, designation: intituleSy};
-            let infoSymStr = JSON.stringify(infoSymObj).replace(/"/g, '&quot;');
-
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" onclick="afficherFicheSymboleSeul(${infoSymStr})" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff; cursor: pointer;" title="Voir la fiche de ce symbole" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" onclick='afficherFicheSymboleSeul(${JSON.stringify(infoSymboleJson || {symbole: c.symbole, plan: c.plan, designation: intituleSy})})' style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff; cursor: pointer;" title="Voir la fiche de ce symbole" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
@@ -295,9 +291,7 @@ function afficherFiche(article) {
             if (stockSy.length > 0) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
-                    let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
-                    let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
-                    htmlSy += `<div onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
+                    htmlSy += `<div onclick='ouvrirModalSortieSy(${JSON.stringify(c)}, ${JSON.stringify(st)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
                         <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
                         <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">➖ Sortie</span>
                     </div>`;
@@ -366,8 +360,7 @@ function afficherFicheSymboleSeul(symItem) {
 
         if (existantsSym.length > 0) {
             existantsSym.forEach(ex => {
-                let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-                htmlStock += `<div onclick="ouvrirModalStockSymbole(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                htmlStock += `<div onclick='ouvrirModalStockSymbole(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
                     <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                     <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
                 </div>`;
@@ -546,6 +539,7 @@ async function partagerStockSmartphone() {
             }
         }
     } else {
+        // Fallback téléchargement classique si PC
         let link = document.createElement("a");
         link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
         link.download = nomFichier;
