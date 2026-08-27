@@ -1,4 +1,4 @@
-const VERSION_APP = "v2.14-ENSEMBLE-SY";
+const VERSION_APP = "16-ENSEMBLE-SY";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -76,7 +76,7 @@ window.addEventListener('DOMContentLoaded', () => {
         afficherSuggestionsPlan(); 
     });
 
-    // --- ÉCOUTEUR DE RECHERCHE SY / SYMBOLE (DOUBLE RECHERCHE : Symbole ET Plan) ---
+    // --- ÉCOUTEUR DE RECHERCHE SY / SYMBOLE (Élargi aux Symboles ET aux Plans du catalogue) ---
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
@@ -87,12 +87,35 @@ window.addEventListener('DOMContentLoaded', () => {
         let inputPln = document.getElementById('inputPlan');
         if (inputPln) inputPln.value = '';
 
-        // Recherche élargie sur symbole, plan ou désignation
-        let matches = catalogueSymboleGlobal.filter(item => 
+        // 1. Recherche dans les symboles (mapping.json)
+        let matchesSym = catalogueSymboleGlobal.filter(item => 
             String(item.symbole || "").toLowerCase().includes(val) || 
             String(item.plan || "").toLowerCase().includes(val) || 
             String(item.designation || "").toLowerCase().includes(val)
-        ).slice(0, 10);
+        ).map(item => ({
+            type: 'SYM',
+            titre: `SY : ${item.symbole}`,
+            sousTitre: item.designation || 'Sans désignation',
+            codeImage: item.symbole,
+            planAssocie: item.plan,
+            donneeBrute: item
+        }));
+
+        // 2. Recherche dans les plans (PELICAN1.xlsx)
+        let matchesPlan = cataloguePlanGlobal.filter(item => 
+            String(item.plan || "").toLowerCase().includes(val) ||
+            String(item.rep || "").toLowerCase().includes(val) ||
+            String(item.intitule || "").toLowerCase().includes(val)
+        ).map(item => ({
+            type: 'PLAN',
+            titre: `Plan : ${item.plan} | Rep : ${item.rep === "000000" ? "Sans repère" : item.rep}`,
+            sousTitre: item.intitule,
+            codeImage: item.plan, // Utilise les 6 caractères du plan pour l'image globale
+            donneeBrute: item
+        }));
+
+        // On fusionne les deux listes et on limite à 10 résultats
+        let matches = [...matchesSym, ...matchesPlan].slice(0, 10);
 
         if (matches.length === 0) {
             container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun résultat trouvé</div>';
@@ -102,32 +125,38 @@ window.addEventListener('DOMContentLoaded', () => {
         let wrapper = document.createElement('div');
         wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
         
-        matches.forEach(symItem => {
+        matches.forEach(match => {
             let div = document.createElement('div');
             div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
             
-            let imgUrl = `${GITHUB_IMG_URL}${symItem.symbole}.jpg`;
+            // Si c'est un plan, on pad sur 6 caractères pour l'image globale, sinon on prend le symbole
+            let imgName = match.type === 'PLAN' ? String(match.donneeBrute.plan).trim().padStart(6, '0') : match.codeImage;
+            let imgUrl = `${GITHUB_IMG_URL}${imgName}.jpg`;
+
             div.innerHTML = `
                 <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1;">
-                    <strong style="font-size: 14px; color: #0056b3;">SY : ${symItem.symbole}</strong> ${symItem.plan ? `| Plan: <b>${symItem.plan}</b>` : ``}<br><small style="color: #555; font-size: 12px;">${symItem.designation || 'Sans désignation'}</small>
+                    <strong style="font-size: 14px; color: ${match.type === 'PLAN' ? '#28a745' : '#0056b3'};">${match.titre}</strong><br><small style="color: #555; font-size: 12px;">${match.sousTitre}</small>
                 </div>
             `;
             
             div.addEventListener('click', () => {
-                document.getElementById('inputSymbole').value = symItem.symbole;
                 container.innerHTML = '';
-
                 let inputPln = document.getElementById('inputPlan');
                 if (inputPln) inputPln.value = '';
 
-                afficherFicheSymboleSeul(symItem);
+                if (match.type === 'SYM') {
+                    document.getElementById('inputSymbole').value = match.donneeBrute.symbole;
+                    afficherFicheSymboleSeul(match.donneeBrute);
+                } else {
+                    document.getElementById('inputSymbole').value = match.donneeBrute.plan;
+                    afficherFiche(match.donneeBrute);
+                }
             });
             wrapper.appendChild(div);
         });
         container.appendChild(wrapper);
     });
-});
 
 function afficherSuggestionsPlan() {
     let container = document.getElementById('listePlanResultats');
