@@ -1,4 +1,4 @@
-const VERSION_APP = "17-10-16";
+const VERSION_APP = "18-ENSEMBLE-SY-intitul 13-13";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -29,6 +29,10 @@ let stockGlobal = [];
 let articleCourant = null;
 let contexteMouvement = null;
 
+// Mémoire tampon pour garder le dernier site et bâtiment saisis
+let dernierSiteSaisi = '';
+let dernierBatimentSaisi = '';
+
 function masquerLoader() {
     let loader = document.getElementById('loaderGlobal');
     if (loader) {
@@ -38,8 +42,28 @@ function masquerLoader() {
     }
 }
 
+// Fonction pour vider complètement l'affichage de la fiche et de la miniature
+function reinitialiserFicheEtSaisies() {
+    articleCourant = null;
+    let resDiv = document.getElementById('resultat');
+    if (resDiv) resDiv.style.display = 'none';
+
+    let img = document.getElementById('imgPiece');
+    if (img) img.src = '';
+
+    let resPlan = document.getElementById('resPlan');
+    if (resPlan) resPlan.textContent = '-';
+    let resRep = document.getElementById('resRep');
+    if (resRep) resRep.textContent = '-';
+    let resIntitule = document.getElementById('resIntitule');
+    if (resIntitule) resIntitule.textContent = '-';
+    let divStock = document.getElementById('infoStockActuel');
+    if (divStock) divStock.innerHTML = '';
+    let conteneurComposants = document.getElementById('resSymbole');
+    if (conteneurComposants) conteneurComposants.innerHTML = '';
+}
+
 window.addEventListener('DOMContentLoaded', () => {
-    // 🛡️ Sécurité anti-blocage radicale : force la suppression du loader après 2.5 secondes quoiqu'il arrive
     setTimeout(masquerLoader, 2500);
 
     console.log(`%c[VERSION ACTIVE] : ${VERSION_APP}`, "background: #222; color: #bada55; padding: 4px; font-size: 14px; font-weight: bold;");
@@ -49,11 +73,18 @@ window.addEventListener('DOMContentLoaded', () => {
     bannerVersion.innerHTML = `TEST ACTIF : ${VERSION_APP} <span style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; margin-left: 10px; cursor: pointer;" onclick="this.parentElement.remove()">Fermer [X]</span>`;
     document.body.prepend(bannerVersion);
 
-    // 🛠️ Masquer le champ repère s'il existe dans le DOM
     let inputRep = document.getElementById('inputRep');
     if (inputRep && inputRep.parentElement) {
         inputRep.parentElement.style.display = 'none';
     }
+
+    // Sélection automatique du texte au clic dans les champs de saisie
+    ['inputPlan', 'inputSymbole', 'stockSite', 'stockBatiment', 'stockRang', 'stockQuantite'].forEach(id => {
+        let el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('focus', function() { this.select(); });
+        }
+    });
 
     Promise.all([
         fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx').then(res => res.arrayBuffer()).then(buffer => {
@@ -79,17 +110,17 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     });
 
-    // --- ÉCOUTEUR DE RECHERCHE ENSEMBLE (PLAN) -> Travaille avec PELICAN ---
+    // --- ÉCOUTEUR ENSEMBLE (PLAN) ---
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
+        reinitialiserFicheEtSaisies();
         let inputSym = document.getElementById('inputSymbole');
-        if (inputSym && document.activeElement === inputSym && inputSym.value) {
-            inputSym.value = '';
-        }
+        if (inputSym) inputSym.value = '';
         afficherSuggestionsPlan(); 
     });
 
-    // --- ÉCOUTEUR DE RECHERCHE SY / SYMBOLE -> Travaille STRICTEMENT avec le JSON ---
+    // --- ÉCOUTEUR SY / SYMBOLE ---
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
+        reinitialiserFicheEtSaisies();
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
         if (!container) return;
@@ -99,7 +130,6 @@ window.addEventListener('DOMContentLoaded', () => {
         let inputPln = document.getElementById('inputPlan');
         if (inputPln) inputPln.value = '';
 
-        // Recherche exclusive dans le catalogue JSON (symboles / mapping)
         let matchesSym = catalogueSymboleGlobal.filter(item => 
             String(item.symbole || "").toLowerCase().includes(val) || 
             String(item.plan || "").toLowerCase().includes(val) || 
@@ -252,13 +282,15 @@ function afficherFiche(article) {
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
             
+            // Récupération intelligente de l'intitulé (priorité à l'intitulé du fichier Excel, puis mapping JSON, puis désignation)
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
-            let designationPiece = (infoSymboleJson && infoSymboleJson.designation) ? infoSymboleJson.designation : (c.designation || c.intitule);
+            let intituleSy = c.intitule || (infoSymboleJson ? (infoSymboleJson.designation || infoSymboleJson.intitule) : "") || c.designation || "Sans intitué";
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
                 <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
-                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Requis : <b>${c.quantite}</b><br><span style="color: #444; font-weight: 500;">${designationPiece}</span>
+                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
+                    <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
                 </div>
             </div>`;
 
@@ -343,8 +375,9 @@ function ouvrirModalPlanRep(existant) {
     document.getElementById('divTypeMvt').style.display = 'block';
     
     document.getElementById('mouvementType').value = 'ENTREE';
-    document.getElementById('stockSite').value = existant ? existant.site : '';
-    document.getElementById('stockBatiment').value = existant ? existant.batiment : '';
+    
+    document.getElementById('stockSite').value = existant ? existant.site : (dernierSiteSaisi || '');
+    document.getElementById('stockBatiment').value = existant ? existant.batiment : (dernierBatimentSaisi || '');
     document.getElementById('stockRang').value = existant ? existant.rang : '';
     document.getElementById('stockQuantite').value = '1';
 
@@ -358,8 +391,9 @@ function ouvrirModalStockSymbole(existant) {
     document.getElementById('divTypeMvt').style.display = 'block';
     
     document.getElementById('mouvementType').value = 'ENTREE';
-    document.getElementById('stockSite').value = existant ? existant.site : '';
-    document.getElementById('stockBatiment').value = existant ? existant.batiment : '';
+    
+    document.getElementById('stockSite').value = existant ? existant.site : (dernierSiteSaisi || '');
+    document.getElementById('stockBatiment').value = existant ? existant.batiment : (dernierBatimentSaisi || '');
     document.getElementById('stockRang').value = existant ? existant.rang : '';
     document.getElementById('stockQuantite').value = '1';
 
@@ -391,13 +425,17 @@ function validerMouvementStock() {
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
     if (qte <= 0) { alert("Quantité invalide"); return; }
 
+    let site = document.getElementById('stockSite').value.trim();
+    let batiment = document.getElementById('stockBatiment').value.trim();
+    let rang = document.getElementById('stockRang').value.trim();
+
+    if (!site || !batiment || !rang) { alert("Remplissez tous les champs d'emplacement."); return; }
+
+    dernierSiteSaisi = site;
+    dernierBatimentSaisi = batiment;
+
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
-        let site = document.getElementById('stockSite').value.trim();
-        let batiment = document.getElementById('stockBatiment').value.trim();
-        let rang = document.getElementById('stockRang').value.trim();
-
-        if (!site || !batiment || !rang) { alert("Remplissez tous les champs d'emplacement."); return; }
 
         let index = stockGlobal.findIndex(item =>
             String(item.plan || "").trim() === String(articleCourant.plan || "").trim() &&
@@ -417,11 +455,6 @@ function validerMouvementStock() {
         }
     } else if (contexteMouvement.type === 'SYMBOLE_PUR') {
         let typeMvt = document.getElementById('mouvementType').value;
-        let site = document.getElementById('stockSite').value.trim();
-        let batiment = document.getElementById('stockBatiment').value.trim();
-        let rang = document.getElementById('stockRang').value.trim();
-
-        if (!site || !batiment || !rang) { alert("Remplissez tous les champs d'emplacement."); return; }
 
         let index = stockGlobal.findIndex(item =>
             String(item.symbole || "").trim().toLowerCase() === String(articleCourant.symbole || "").trim().toLowerCase() &&
@@ -457,12 +490,12 @@ function validerMouvementStock() {
     localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
     fermerModal();
     
-    if (articleCourant.plan === "SYMB") {
-        let symObj = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(articleCourant.symbole || "").trim().toLowerCase());
-        if (symObj) afficherFicheSymboleSeul(symObj);
-    } else {
-        afficherFiche(articleCourant);
-    }
+    let inputPlan = document.getElementById('inputPlan');
+    if (inputPlan) inputPlan.value = '';
+    let inputSymbole = document.getElementById('inputSymbole');
+    if (inputSymbole) inputSymbole.value = '';
+    
+    reinitialiserFicheEtSaisies();
     
     alert("✅ Mouvement enregistré avec succès !");
 }
