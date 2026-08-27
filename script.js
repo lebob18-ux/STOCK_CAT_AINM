@@ -1,4 +1,4 @@
-const VERSION_APP = "17-ENSEMBLE-SY-intitul";
+const VERSION_APP = "9-58";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -9,6 +9,20 @@ window.addEventListener('beforeinstallprompt', (e) => {
     let btn = document.getElementById('btnInstaller');
     if (btn) btn.style.display = 'block';
 });
+
+// Fonction d'installation PWA si le bouton est présent
+function installerApplication() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('Utilisateur a accepté l\'installation PWA');
+        }
+        deferredPrompt = null;
+        let btn = document.getElementById('btnInstaller');
+        if (btn) btn.style.display = 'none';
+    });
+}
 
 let cataloguePlanGlobal = [];
 let catalogueSymboleGlobal = [];
@@ -26,6 +40,9 @@ function masquerLoader() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    // 🛡️ Sécurité anti-blocage radicale : force la suppression du loader après 2.5 secondes quoiqu'il arrive
+    setTimeout(masquerLoader, 2500);
+
     console.log(`%c[VERSION ACTIVE] : ${VERSION_APP}`, "background: #222; color: #bada55; padding: 4px; font-size: 14px; font-weight: bold;");
     
     let bannerVersion = document.createElement('div');
@@ -63,10 +80,6 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     });
 
-    setTimeout(() => {
-        masquerLoader();
-    }, 4000);
-
     // --- ÉCOUTEUR DE RECHERCHE ENSEMBLE (PLAN) ---
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
         let inputSym = document.getElementById('inputSymbole');
@@ -76,7 +89,7 @@ window.addEventListener('DOMContentLoaded', () => {
         afficherSuggestionsPlan(); 
     });
 
-    // --- ÉCOUTEUR DE RECHERCHE SY / SYMBOLE (Élargi aux Symboles ET aux Plans du catalogue) ---
+    // --- ÉCOUTEUR DE RECHERCHE SY / SYMBOLE ---
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         let val = e.target.value.toLowerCase().trim();
         let container = document.getElementById('suggestions');
@@ -87,7 +100,6 @@ window.addEventListener('DOMContentLoaded', () => {
         let inputPln = document.getElementById('inputPlan');
         if (inputPln) inputPln.value = '';
 
-        // 1. Recherche dans les symboles (mapping.json)
         let matchesSym = catalogueSymboleGlobal.filter(item => 
             String(item.symbole || "").toLowerCase().includes(val) || 
             String(item.plan || "").toLowerCase().includes(val) || 
@@ -101,7 +113,6 @@ window.addEventListener('DOMContentLoaded', () => {
             donneeBrute: item
         }));
 
-        // 2. Recherche dans les plans (PELICAN1.xlsx)
         let matchesPlan = cataloguePlanGlobal.filter(item => 
             String(item.plan || "").toLowerCase().includes(val) ||
             String(item.rep || "").toLowerCase().includes(val) ||
@@ -110,11 +121,10 @@ window.addEventListener('DOMContentLoaded', () => {
             type: 'PLAN',
             titre: `Plan : ${item.plan} | Rep : ${item.rep === "000000" ? "Sans repère" : item.rep}`,
             sousTitre: item.intitule,
-            codeImage: item.plan, // Utilise les 6 caractères du plan pour l'image globale
+            codeImage: item.plan,
             donneeBrute: item
         }));
 
-        // On fusionne les deux listes et on limite à 10 résultats
         let matches = [...matchesSym, ...matchesPlan].slice(0, 10);
 
         if (matches.length === 0) {
@@ -129,7 +139,6 @@ window.addEventListener('DOMContentLoaded', () => {
             let div = document.createElement('div');
             div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px;";
             
-            // Si c'est un plan, on pad sur 6 caractères pour l'image globale, sinon on prend le symbole
             let imgName = match.type === 'PLAN' ? String(match.donneeBrute.plan).trim().padStart(6, '0') : match.codeImage;
             let imgUrl = `${GITHUB_IMG_URL}${imgName}.jpg`;
 
@@ -157,6 +166,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
         container.appendChild(wrapper);
     });
+});
 
 function afficherSuggestionsPlan() {
     let container = document.getElementById('listePlanResultats');
@@ -201,13 +211,11 @@ function afficherFiche(article) {
     document.getElementById('resRep').textContent = article.rep === "000000" ? "Sans repère" : (article.rep || '-');
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
-    // Miniature globale du plan (6 caractères)
     let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
     img.src = `${GITHUB_IMG_URL}${plan6}.jpg`;
     img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
 
-    // --- LIEUX DE STOCK ENSEMBLE ---
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
@@ -236,7 +244,6 @@ function afficherFiche(article) {
     htmlStock += `</div>`;
     divStock.innerHTML = htmlStock;
 
-    // --- BLOC ÉCLATÉ (SY) ---
     let conteneurComposants = document.getElementById('resSymbole');
     conteneurComposants.innerHTML = '';
 
@@ -263,10 +270,7 @@ function afficherFiche(article) {
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
             
-// Recherche de la désignation propre du composant SY dans le mapping ou le catalogue
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
-            
-            // Priorité : 1. Désignation du mapping JSON, 2. Désignation propre du composant, 3. Intitulé du composant, et en dernier recours l'intitulé global si rien d'autre n'existe
             let designationPiece = (infoSymboleJson && infoSymboleJson.designation) ? infoSymboleJson.designation : (c.designation || c.intitule);
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
@@ -350,7 +354,6 @@ function afficherFicheSymboleSeul(symItem) {
     document.getElementById('resultat').style.display = 'block';
 }
 
-// --- GESTION DE LA MODALE ---
 function ouvrirModalPlanRep(existant) {
     contexteMouvement = { type: 'PLAN_REP', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Ensemble" : "Ajouter stock Ensemble";
