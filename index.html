@@ -7,17 +7,17 @@
 </head>
 <body>
     <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; justify-content: center; align-items: center; z-index: 99999;">
-        <h2>Chargement des données...22-54</h2>
+        <h2>Chargement des données...00-00</h2>
     </div>
 
     <div style="padding: 15px; max-width: 600px; margin: auto; font-family: sans-serif;">
         
         <!-- BANDEAU DE VERSION -->
-        <div id="bandeauVersion" style="background: #0056b3; color: white; padding: 6px 12px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 15px; border-radius: 4px;">Mode Ensemble (Pelican) Actif</div>
+        <div id="bandeauVersion" style="background: #0056b3; color: white; padding: 6px 12px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 15px; border-radius: 4px;">Mode Ensemble Actif</div>
 
         <!-- ONGLETS DE NAVIGATION -->
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <button type="button" onclick="changerOnglet('pelican')" id="btnTabPelican" style="flex: 1; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">📦 Ensemble (Pelican)</button>
+            <button type="button" onclick="changerOnglet('pelican')" id="btnTabPelican" style="flex: 1; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">📦 Ensemble (Eclaté)</button>
             <button type="button" onclick="changerOnglet('json')" id="btnTabJson" style="flex: 1; padding: 12px; background: #e9ecef; color: #333; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🔍 SY (JSON)</button>
         </div>
 
@@ -180,7 +180,7 @@
                 btnJson.style.background = '#e9ecef';
                 btnJson.style.color = '#333';
                 bandeau.style.background = '#0056b3';
-                bandeau.textContent = 'Mode Ensemble (Pelican) Actif';
+                bandeau.textContent = 'Mode Ensemble Actif';
             } else {
                 ongletPelican.style.display = 'none';
                 ongletJson.style.display = 'block';
