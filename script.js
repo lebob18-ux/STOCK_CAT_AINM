@@ -1,4 +1,4 @@
-const VERSION_APP = "18-ENSEMBLE-SY-intitul 13-13";
+const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 13-45";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -29,7 +29,6 @@ let stockGlobal = [];
 let articleCourant = null;
 let contexteMouvement = null;
 
-// Mémoire tampon pour garder le dernier site et bâtiment saisis
 let dernierSiteSaisi = '';
 let dernierBatimentSaisi = '';
 
@@ -42,7 +41,6 @@ function masquerLoader() {
     }
 }
 
-// Fonction pour vider complètement l'affichage de la fiche et de la miniature
 function reinitialiserFicheEtSaisies() {
     articleCourant = null;
     let resDiv = document.getElementById('resultat');
@@ -78,7 +76,6 @@ window.addEventListener('DOMContentLoaded', () => {
         inputRep.parentElement.style.display = 'none';
     }
 
-    // Sélection automatique du texte au clic dans les champs de saisie
     ['inputPlan', 'inputSymbole', 'stockSite', 'stockBatiment', 'stockRang', 'stockQuantite'].forEach(id => {
         let el = document.getElementById(id);
         if (el) {
@@ -110,7 +107,6 @@ window.addEventListener('DOMContentLoaded', () => {
         masquerLoader();
     });
 
-    // --- ÉCOUTEUR ENSEMBLE (PLAN) ---
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
         reinitialiserFicheEtSaisies();
         let inputSym = document.getElementById('inputSymbole');
@@ -118,7 +114,6 @@ window.addEventListener('DOMContentLoaded', () => {
         afficherSuggestionsPlan(); 
     });
 
-    // --- ÉCOUTEUR SY / SYMBOLE ---
     document.getElementById('inputSymbole')?.addEventListener('input', (e) => {
         reinitialiserFicheEtSaisies();
         let val = e.target.value.toLowerCase().trim();
@@ -282,14 +277,13 @@ function afficherFiche(article) {
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
             
-            // Récupération intelligente de l'intitulé (priorité à l'intitulé du fichier Excel, puis mapping JSON, puis désignation)
             let infoSymboleJson = catalogueSymboleGlobal.find(s => String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
-            let intituleSy = c.intitule || (infoSymboleJson ? (infoSymboleJson.designation || infoSymboleJson.intitule) : "") || c.designation || "Sans intitué";
+            let intituleSy = (infoSymboleJson ? (infoSymboleJson.designation || infoSymboleJson.intitule) : "") || c.designation || "Sans intitulé";
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" onclick='afficherFicheSymboleSeul(${JSON.stringify(infoSymboleJson || {symbole: c.symbole, plan: c.plan, designation: intituleSy})})' style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff; cursor: pointer;" title="Voir la fiche de ce symbole" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
                 <div style="flex-grow: 1; font-size: 12px;">
-                    <strong style="color: #0056b3;">SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
+                    <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
                 </div>
             </div>`;
@@ -323,7 +317,6 @@ function afficherFiche(article) {
 }
 
 function afficherFicheSymboleSeul(symItem) {
-    // Recherche de la correspondance dans le catalogue global pour récupérer le vrai plan et le vrai intitulé
     let correspondanceExcel = cataloguePlanGlobal.find(item => 
         String(item.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase()
     );
@@ -334,15 +327,14 @@ function afficherFicheSymboleSeul(symItem) {
 
     articleCourant = { plan: numPlan, rep: numSy, intitule: intituleTexte, symbole: numSy };
     
-    // Mise à jour des éléments textuels dans l'interface
     let elPlan = document.getElementById('resPlan');
     if (elPlan) elPlan.textContent = numPlan;
 
     let elRep = document.getElementById('resRep');
-    if (elRep) elRep.textContent = numSy; // N° SY
+    if (elRep) elRep.textContent = numSy;
 
     let elIntitule = document.getElementById('resIntitule');
-    if (elIntitule) elIntitule.textContent = intituleTexte; // INTITULÉ
+    if (elIntitule) elIntitule.textContent = intituleTexte;
 
     let img = document.getElementById('imgPiece');
     if (img) {
@@ -385,35 +377,6 @@ function afficherFicheSymboleSeul(symItem) {
 
     let resultatDiv = document.getElementById('resultat');
     if (resultatDiv) resultatDiv.style.display = 'block';
-}
-
-// Fonction de partage natif sur smartphone (remplace le téléchargement direct)
-async function partagerSurSmartphone(donneesTexteOuFichier, nomFichier = "export_stock.csv") {
-    if (navigator.share) {
-        try {
-            let fichier = new File([donneesTexteOuFichier], nomFichier, { type: 'text/csv' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-                await navigator.share({
-                    title: 'Export Stock / Données',
-                    text: 'Voici le fichier d\'export depuis l\'application.',
-                    files: [fichier]
-                });
-                return;
-            }
-
-            await navigator.share({
-                title: 'Export Stock / Données',
-                text: donneesTexteOuFichier
-            });
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.log("Partage annulé ou erreur :", error);
-            }
-        }
-    } else {
-        alert("Le partage natif n'est pas supporté sur ce navigateur (utilisé sur PC).");
-    }
 }
 
 function ouvrirModalPlanRep(existant) {
@@ -548,14 +511,40 @@ function validerMouvementStock() {
     alert("✅ Mouvement enregistré avec succès !");
 }
 
-function exporterStockCSV() {
-    if (stockGlobal.length === 0) { alert("Aucun stock à exporter."); return; }
+async function partagerStockSmartphone() {
+    if (stockGlobal.length === 0) { alert("Aucun stock à partager."); return; }
     let csv = "Plan;Rep;Symbole;Intitule;Site;Batiment;Rang;Quantite\n";
     stockGlobal.forEach(i => { csv += `${i.plan || ""};${i.rep === "000000" ? "" : (i.rep || "")};${i.symbole || ""};"${(i.intitule || "").replace(/"/g, '""')}";${i.site || ""};${i.batiment || ""};${i.rang || ""};${i.quantite || 0}\n`; });
-    let link = document.createElement("a");
-    link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
-    link.download = "stock_terrain_" + new Date().toISOString().slice(0, 10) + ".csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    let nomFichier = "stock_terrain_" + new Date().toISOString().slice(0, 10) + ".csv";
+
+    if (navigator.share) {
+        try {
+            let fichier = new File([csv], nomFichier, { type: 'text/csv' });
+            if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+                await navigator.share({
+                    title: 'Export Stock Terrain',
+                    text: 'Voici le fichier de stock exporté depuis l\'application.',
+                    files: [fichier]
+                });
+                return;
+            }
+            await navigator.share({
+                title: 'Export Stock Terrain',
+                text: csv
+            });
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.log("Partage annulé ou erreur :", error);
+            }
+        }
+    } else {
+        // Fallback téléchargement classique si PC
+        let link = document.createElement("a");
+        link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
+        link.download = nomFichier;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
 }
