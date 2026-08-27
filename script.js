@@ -323,49 +323,97 @@ function afficherFiche(article) {
 }
 
 function afficherFicheSymboleSeul(symItem) {
-    articleCourant = { plan: "SYMB", rep: symItem.symbole, intitule: symItem.designation || symItem.symbole, symbole: symItem.symbole };
+    // Recherche de la correspondance dans le catalogue global pour récupérer le vrai plan et le vrai intitulé
+    let correspondanceExcel = cataloguePlanGlobal.find(item => 
+        String(item.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase()
+    );
+
+    let numPlan = correspondanceExcel ? correspondanceExcel.plan : (symItem.planAssocie || "-");
+    let numSy = symItem.symbole || "-";
+    let intituleTexte = correspondanceExcel ? correspondanceExcel.intitule : (symItem.designation || symItem.intitule || "Sans intitulé");
+
+    articleCourant = { plan: numPlan, rep: numSy, intitule: intituleTexte, symbole: numSy };
     
-    document.getElementById('resPlan').textContent = "SY / SYMBOLE";
-    document.getElementById('resRep').textContent = symItem.symbole;
-    document.getElementById('resIntitule').textContent = symItem.designation || "Symbole issu du mapping JSON";
+    // Mise à jour des éléments textuels dans l'interface
+    let elPlan = document.getElementById('resPlan');
+    if (elPlan) elPlan.textContent = numPlan;
+
+    let elRep = document.getElementById('resRep');
+    if (elRep) elRep.textContent = numSy; // N° SY
+
+    let elIntitule = document.getElementById('resIntitule');
+    if (elIntitule) elIntitule.textContent = intituleTexte; // INTITULÉ
 
     let img = document.getElementById('imgPiece');
-    img.src = `${GITHUB_IMG_URL}${symItem.symbole}.jpg`;
-    img.onerror = () => { 
-        img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EMiniature introuvable%3C/text%3E%3C/svg%3E'; 
-    };
+    if (img) {
+        img.src = `${GITHUB_IMG_URL}${numSy}.jpg`;
+        img.onerror = () => { 
+            img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EMiniature introuvable%3C/text%3E%3C/svg%3E'; 
+        };
+    }
 
     let existantsSym = stockGlobal.filter(item => 
-        String(item.symbole || "").trim().toLowerCase() === String(symItem.symbole || "").trim().toLowerCase() &&
-        (!item.plan || item.plan === "SYMB" || item.plan === "")
+        String(item.symbole || "").trim().toLowerCase() === String(numSy || "").trim().toLowerCase() &&
+        (!item.plan || item.plan === "SYMB" || item.plan === numPlan)
     );
 
     let divStock = document.getElementById('infoStockActuel');
-    divStock.style.display = 'block';
-    
-    let htmlStock = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
-    htmlStock += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock Symbole :</strong>
-                    <button type="button" onclick="ouvrirModalStockSymbole(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
-                  </div>`;
+    if (divStock) {
+        divStock.style.display = 'block';
+        let htmlStock = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
+        htmlStock += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock Symbole :</strong>
+                        <button type="button" onclick="ouvrirModalStockSymbole(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
+                      </div>`;
 
-    if (existantsSym.length > 0) {
-        existantsSym.forEach(ex => {
-            htmlStock += `<div onclick='ouvrirModalStockSymbole(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
-                <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
-            </div>`;
-        });
-    } else {
-        htmlStock += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole. Cliquez sur "Ajouter Stock".</div>`;
+        if (existantsSym.length > 0) {
+            existantsSym.forEach(ex => {
+                htmlStock += `<div onclick='ouvrirModalStockSymbole(${JSON.stringify(ex)})' style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                    <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+                </div>`;
+            });
+        } else {
+            htmlStock += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole. Cliquez sur "Ajouter Stock".</div>`;
+        }
+        htmlStock += `</div>`;
+        divStock.innerHTML = htmlStock;
     }
-    htmlStock += `</div>`;
-    divStock.innerHTML = htmlStock;
     
     let conteneurComposants = document.getElementById('resSymbole');
-    conteneurComposants.innerHTML = '';
+    if (conteneurComposants) conteneurComposants.innerHTML = '';
 
-    document.getElementById('resultat').style.display = 'block';
+    let resultatDiv = document.getElementById('resultat');
+    if (resultatDiv) resultatDiv.style.display = 'block';
+}
+
+// Fonction de partage natif sur smartphone (remplace le téléchargement direct)
+async function partagerSurSmartphone(donneesTexteOuFichier, nomFichier = "export_stock.csv") {
+    if (navigator.share) {
+        try {
+            let fichier = new File([donneesTexteOuFichier], nomFichier, { type: 'text/csv' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
+                await navigator.share({
+                    title: 'Export Stock / Données',
+                    text: 'Voici le fichier d\'export depuis l\'application.',
+                    files: [fichier]
+                });
+                return;
+            }
+
+            await navigator.share({
+                title: 'Export Stock / Données',
+                text: donneesTexteOuFichier
+            });
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.log("Partage annulé ou erreur :", error);
+            }
+        }
+    } else {
+        alert("Le partage natif n'est pas supporté sur ce navigateur (utilisé sur PC).");
+    }
 }
 
 function ouvrirModalPlanRep(existant) {
