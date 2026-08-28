@@ -315,3 +315,6 @@ function validerMouvementStock() {
     
     alert("✅ Mouvement Pelican enregistré avec succès !");
 }
+function imprimerFichePelican() {
+    window.print();
+}
