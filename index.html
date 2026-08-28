@@ -196,6 +196,38 @@
                 bandeau.textContent = 'Mode SY (JSON) Actif';
             }
         }
+        async function partagerStock() {
+    let stockData = localStorage.getItem('stock_local_sauvegarde') || '[]';
+    let blob = new Blob([stockData], { type: 'application/json' });
+    let file = new File([blob], 'stock_terrain.json', { type: 'application/json' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({
+                title: 'Gestion Stock Terrain',
+                text: 'Voici le fichier de sauvegarde du stock terrain.',
+                files: [file]
+            });
+            return;
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.warn("Erreur de partage, bascule vers le téléchargement :", error);
+            } else {
+                return; // L'utilisateur a annulé le partage
+            }
+        }
+    }
+
+    // Solution de secours si le partage natif n'est pas disponible
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = 'stock_terrain.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
     </script>
 </body>
 </html>
