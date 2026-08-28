@@ -4,6 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion Stock Terrain</title>
+
+<style>
+@media print {
+    /* Masquer tout le superflu */
+    body * {
+        visibility: hidden;
+    }
+    /* Rendre visible uniquement l'onglet Pelican et son contenu */
+    #ongletPelican, #ongletPelican * {
+        visibility: visible;
+    }
+    #ongletPelican {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    /* Masquer les champs de recherche et boutons interactifs superflus sur le PDF */
+    #inputPlan, #listePlanResultats, button {
+        display: none !important;
+    }
+}
+</style>
 </head>
 <body>
 <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.4s ease;">
