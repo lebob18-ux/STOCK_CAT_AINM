@@ -19,6 +19,9 @@ window.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('focus', function() { this.select(); });
     });
 
+let barre = document.getElementById('barreProgression');
+    if (barre) barre.style.width = '60%';
+
     fetch(GITHUB_BASE_URL + 'mapping.json')
         .then(res => {
             if (!res.ok) throw new Error("Erreur réseau");
@@ -26,11 +29,15 @@ window.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             catalogueSymboleGlobal = data || [];
+            if (barre) barre.style.width = '100%';
             console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "entrées.");
+            masquerLoaderGlobal();
         })
         .catch(err => {
             console.warn("⚠️ Impossible de charger mapping.json :", err);
             catalogueSymboleGlobal = [];
+            if (barre) barre.style.width = '100%';
+            masquerLoaderGlobal();
         });
 
     let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
@@ -244,4 +251,13 @@ function validerMouvementStockJson() {
     document.getElementById('inputSymboleJson').value = '';
     reinitialiserFicheJson();
     alert("✅ Mouvement JSON enregistré avec succès !");
+}
+function masquerLoaderGlobal() {
+    setTimeout(() => {
+        let loader = document.getElementById('loaderGlobal');
+        if (loader) {
+            loader.style.opacity = '0';
+            setTimeout(() => loader.style.display = 'none', 400);
+        }
+    }, 200);
 }
