@@ -280,3 +280,53 @@ function masquerLoaderGlobal() {
         }
     }, 200);
 }
+const GITHUB_STOCK_CSV_URL = GITHUB_BASE_URL + 'stock.csv';
+
+function chargerStockDepuisCsvDistant() {
+    fetch(GITHUB_STOCK_CSV_URL + '?t=' + new Date().getTime()) // Anti-cache pour forcer la fraîcheur
+        .then(res => {
+            if (!res.ok) throw new Error("Fichier stock.csv introuvable sur GitHub");
+            return res.text();
+        })
+        .then(csvText => {
+            let lignes = csvText.trim().split('\n');
+            if (lignes.length <= 1) return; // Ignore si vide ou juste l'en-tête
+
+            let nouveauStock = [];
+            // Détection automatique du séparateur (; ou ,)
+            let separateur = lignes[0].includes(';') ? ';' : ',';
+
+            for (let i = 1; i < lignes.length; i++) {
+                let lignePropre = lignes[i].trim();
+                if (!lignePropre) continue;
+
+                let cols = lignePropre.split(separateur).map(c => c.trim().replace(/^"|"$/g, ''));
+                
+                if (cols.length >= 8) {
+                    nouveauStock.push({
+                        plan: cols[0] || "",
+                        rep: cols[1] || "",
+                        symbole: cols[2] || "",
+                        intitule: cols[3] || "",
+                        site: cols[4] || "",
+                        batiment: cols[5] || "",
+                        rang: cols[6] || "",
+                        quantite: parseInt(cols[7]) || 0
+                    });
+                }
+            }
+
+            if (nouveauStock.length > 0) {
+                stockGlobalJson = nouveauStock;
+                localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobalJson));
+                console.log("📦 Stock global mis à jour depuis le CSV GitHub :", stockGlobalJson.length, "lignes.");
+            }
+        })
+        .catch(err => {
+            console.warn("⚠️ Mode hors-ligne ou erreur de chargement du CSV distant, utilisation du cache local :", err);
+            let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
+            if (stockSauvegarde) {
+                try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
+            }
+        });
+}
