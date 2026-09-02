@@ -154,15 +154,9 @@ function chargerStockDepuisCsvDistant() {
 async function verifierEtprechargerMiniatures() {
     if (!('caches' in window)) return;
 
-    const modal = document.getElementById('modalPremierLancement');
-    const barre = document.getElementById('barreProgressionInitiale');
-    const texte = document.getElementById('texteProgression');
-    const compteur = document.getElementById('compteurProgression');
-
-    // SÉCURITÉ HORS-LIGNE : Si pas de réseau, on ne bloque pas du tout
+    // Si on est hors-ligne, inutile de poser la question, on utilise le cache actuel
     if (!navigator.onLine) {
-        console.log("📴 Mode hors-ligne détecté au démarrage : contournement du pré-chargement.");
-        if (modal) modal.style.display = 'none';
+        console.log("📴 Pas de réseau : utilisation directe du cache actuel.");
         return;
     }
 
@@ -177,55 +171,74 @@ async function verifierEtprechargerMiniatures() {
             return !imagesEnCache.has(imgUrl);
         });
 
-        if (aTelecharger.length === 0) {
-            if (modal) modal.style.display = 'none';
-            return;
-        }
+        // S'il n'y a rien de nouveau à télécharger, on ne fait rien
+        if (aTelecharger.length === 0) return;
 
-        if (modal) modal.style.display = 'flex';
-        let total = aTelecharger.length;
-        let telechargees = 0;
+        // S'il y a de nouvelles miniatures, on affiche la modale de demande
+        const modalDemande = document.getElementById('modalDemandeTelechargement');
+        if (modalDemande) {
+            modalDemande.style.display = 'flex';
 
-        // SÉCURITÉ TEMPORELLE : Si le téléchargement traîne trop ou bloque, on libère l'app au bout de 5 secondes max
-        let securiteDebloquee = false;
-        let timerSecurite = setTimeout(() => {
-            if (!securiteDebloquee && modal) {
-                console.warn("⚠️ Temps de pré-chargement dépassé, libération de l'interface.");
-                securiteDebloquee = true;
-                modal.style.display = 'none';
-            }
-        }, 5000);
+            document.getElementById('btnAccepterTelechargement').onclick = async () => {
+                modalDemande.style.display = 'none';
+                await lancerTelechargementEnMasse(aTelecharger, cache);
+            };
 
-        for (let item of aTelecharger) {
-            if (securiteDebloquee) break; // Arrête la boucle si le timer a coupé
-
-            let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
-            try {
-                let response = await fetch(imgUrl, { signal: AbortSignal.timeout(2000) }); // Timeout de 2s par image
-                if (response && response.ok) {
-                    await cache.put(imgUrl, response);
-                }
-            } catch (err) {
-                // Ignore l'erreur et continue
-            }
-
-            telechargees++;
-            let pourcentage = Math.round((telechargees / total) * 100);
-            
-            if (barre) barre.style.width = pourcentage + '%';
-            if (compteur) compteur.textContent = `${telechargees} / ${total} (${pourcentage}%)`;
-        }
-
-        clearTimeout(timerSecurite);
-        if (!securiteDebloquee) {
-            setTimeout(() => {
-                if (modal) modal.style.display = 'none';
-            }, 300);
+            document.getElementById('btnRefuserTelechargement').onclick = () => {
+                modalDemande.style.display = 'none';
+                console.log("❌ Téléchargement des miniatures refusé par l'utilisateur.");
+            };
         }
 
     } catch (err) {
-        console.error("Erreur lors du pré-chargement :", err);
-        if (modal) modal.style.display = 'none'; // S'assure de débloquer en cas d'erreur
+        console.error("Erreur lors de la vérification des miniatures :", err);
+    }
+}
+
+async function lancerTelechargementEnMasse(aTelecharger, cache) {
+    const modalProgression = document.getElementById('modalPremierLancement');
+    const barre = document.getElementById('barreProgressionInitiale');
+    const compteur = document.getElementById('compteurProgression');
+
+    if (modalProgression) modalProgression.style.display = 'flex';
+
+    let total = aTelecharger.length;
+    let telechargees = 0;
+    let securiteDebloquee = false;
+
+    let timerSecurite = setTimeout(() => {
+        if (!securiteDebloquee && modalProgression) {
+            console.warn("⚠️ Temps de pré-chargement dépassé, libération de l'interface.");
+            securiteDebloquee = true;
+            modalProgression.style.display = 'none';
+        }
+    }, 10000); // 10 secondes max pour éviter tout blocage réseau
+
+    for (let item of aTelecharger) {
+        if (securiteDebloquee) break;
+
+        let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+        try {
+            let response = await fetch(imgUrl, { signal: AbortSignal.timeout(3000) });
+            if (response && response.ok) {
+                await cache.put(imgUrl, response);
+            }
+        } catch (err) {
+            // Ignore l'échec d'une image isolée et poursuit le téléchargement
+        }
+
+        telechargees++;
+        let pourcentage = Math.round((telechargees / total) * 100);
+
+        if (barre) barre.style.width = pourcentage + '%';
+        if (compteur) compteur.textContent = `${telechargees} / ${total} (${pourcentage}%)`;
+    }
+
+    clearTimeout(timerSecurite);
+    if (!securiteDebloquee && modalProgression) {
+        setTimeout(() => {
+            modalProgression.style.display = 'none';
+        }, 300);
     }
 }
 
