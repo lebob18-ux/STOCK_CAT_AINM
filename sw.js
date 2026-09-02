@@ -35,44 +35,49 @@ self.addEventListener('activate', (e) => {
     );
     self.clients.claim();
 });
-
-// 3. Interception des requêtes : Cache d'abord pour GitHub (miniatures & mapping) avec sauvegarde automatique
+// 3. Interception des requêtes : Gestion robuste pour GitHub et fichiers locaux
 self.addEventListener('fetch', (e) => {
-    if (e.request.url.includes('raw.githubusercontent.com')) {
+    let url = new URL(e.request.url);
+
+    if (url.hostname.includes('raw.githubusercontent.com') || url.hostname.includes('github.io')) {
         e.respondWith(
-            caches.match(e.request).then((cachedResponse) => {
+            caches.open(CACHE_NAME).then(async (cache) => {
+                // On cherche d'abord par la requête exacte
+                let cachedResponse = await cache.match(e.request);
                 if (cachedResponse) {
-                    // Si l'image ou le mapping est déjà en cache, on le sert immédiatement
-                    // et on tente de le rafraîchir en arrière-plan si le réseau est disponible
+                    // Rafraîchissement en arrière-plan si en ligne
                     fetch(e.request).then((networkResponse) => {
                         if (networkResponse && networkResponse.status === 200) {
-                            caches.open(CACHE_NAME).then((cache) => {
-                                cache.put(e.request, networkResponse);
-                            });
+                            cache.put(e.request, networkResponse);
                         }
                     }).catch(() => {});
                     return cachedResponse;
                 }
 
-                // Si pas encore en cache, on va le chercher sur GitHub et on le stocke pour la prochaine fois
-                return fetch(e.request).then((networkResponse) => {
-                    if (networkResponse && networkResponse.status === 200) {
-                        let responseClone = networkResponse.clone();
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(e.request, responseClone);
-                        });
+                // Si pas trouvé par la requête exacte, on tente de chercher par URL brute (pour contrer les variations de mode)
+                let allKeys = await cache.keys();
+                let matchingKey = allKeys.find(key => key.url === e.request.url);
+                if (matchingKey) {
+                    let matchedByUrl = await cache.match(matchingKey);
+                    if (matchedByUrl) return matchedByUrl;
+                }
+
+                // Si vraiment absent du cache, on tente le réseau
+                try {
+                    let networkResponse = await fetch(e.request);
+                    if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+                        cache.put(e.request, networkResponse.clone());
                     }
                     return networkResponse;
-                }).catch(() => {
-                    // Repli si hors ligne et que l'élément n'a jamais été chargé
-                    return new Response("Hors ligne - Ressource non disponible", { status: 404, statusText: "Offline" });
-                });
+                } catch (err) {
+                    return new Response("Hors ligne - Image non disponible", { status: 404, statusText: "Offline" });
+                }
             })
         );
         return;
     }
 
-    // Pour le reste de l'application (fichiers locaux) : Cache d'abord, puis mise à jour en arrière-plan
+    // Pour le reste de l'application (fichiers locaux)
     e.respondWith(
         caches.match(e.request).then((cachedResponse) => {
             if (cachedResponse) {
@@ -85,7 +90,10 @@ self.addEventListener('fetch', (e) => {
                 }).catch(() => {});
                 return cachedResponse;
             }
-            return fetch(e.request);
+            return fetch(e.request).catch(() => {
+                // Repli global si page/ressource locale introuvable hors-ligne
+                return caches.match('./index.html');
+            });
         })
     );
 });
