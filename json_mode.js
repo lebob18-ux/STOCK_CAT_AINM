@@ -11,6 +11,8 @@ if (typeof contexteMouvementJson === 'undefined') { var contexteMouvementJson = 
 if (typeof dernierSiteSaisiJson === 'undefined') { var dernierSiteSaisiJson = ''; }
 if (typeof dernierBatimentSaisiJson === 'undefined') { var dernierBatimentSaisiJson = ''; }
 
+const GITHUB_STOCK_CSV_URL = GITHUB_BASE_URL + 'stock.csv';
+
 window.addEventListener('DOMContentLoaded', () => {
     console.log(`%c[JSON MODE] : ${VERSION_APP_JSON}`, "background: #28a745; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
 
@@ -20,8 +22,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     let barre = document.getElementById('barreProgression');
-    if (barre) barre.style.width = '60%';
+    if (barre) barre.style.width = '30%';
 
+    // 1. Chargement du stock distant depuis GitHub (CSV) ou repli sur le localStorage
+    chargerStockDepuisCsvDistant();
+
+    // 2. Chargement du catalogue de référence (mapping.json)
     fetch(GITHUB_BASE_URL + 'mapping.json')
         .then(res => {
             if (!res.ok) throw new Error("Erreur réseau");
@@ -29,11 +35,11 @@ window.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             catalogueSymboleGlobal = data || [];
-            if (barre) barre.style.width = '100%';
+            if (barre) barre.style.width = '60%';
             console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "entrées.");
             
-            // Lancement du téléchargement automatique de toutes les miniatures en arrière-plan
-            prechargerToutesLesMiniatures();
+            // 3. Vérification et pré-chargement bloquant des miniatures si premier lancement
+            verifierEtprechargerMiniatures();
             
             masquerLoaderGlobal();
         })
@@ -43,11 +49,6 @@ window.addEventListener('DOMContentLoaded', () => {
             if (barre) barre.style.width = '100%';
             masquerLoaderGlobal();
         });
-
-    let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
-    if (stockSauvegarde) {
-        try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
-    }
 
     let inputSymbole = document.getElementById('inputSymboleJson');
     if (inputSymbole) {
@@ -100,20 +101,113 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-function prechargerToutesLesMiniatures() {
-    if (!navigator.onLine) return; 
+// Chargement et parsing du stock CSV distant depuis GitHub
+function chargerStockDepuisCsvDistant() {
+    fetch(GITHUB_STOCK_CSV_URL + '?t=' + new Date().getTime())
+        .then(res => {
+            if (!res.ok) throw new Error("Fichier stock.csv introuvable sur GitHub");
+            return res.text();
+        })
+        .then(csvText => {
+            let lignes = csvText.trim().split('\n');
+            if (lignes.length <= 1) return;
 
-    console.log("📥 Démarrage du pré-chargement des miniatures en arrière-plan...");
+            let nouveauStock = [];
+            let separateur = lignes[0].includes(';') ? ';' : ',';
 
-    if (typeof catalogueSymboleGlobal !== 'undefined' && catalogueSymboleGlobal.length > 0) {
-        catalogueSymboleGlobal.forEach((item, index) => {
-            if (item.symbole) {
-                let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
-                setTimeout(() => {
-                    fetch(imgUrl, { mode: 'no-cors' }).catch(err => {});
-                }, index * 50);
+            for (let i = 1; i < lignes.length; i++) {
+                let lignePropre = lignes[i].trim();
+                if (!lignePropre) continue;
+
+                let cols = lignePropre.split(separateur).map(c => c.trim().replace(/^"|"$/g, ''));
+                
+                if (cols.length >= 8) {
+                    nouveauStock.push({
+                        plan: cols[0] || "",
+                        rep: cols[1] || "",
+                        symbole: cols[2] || "",
+                        intitule: cols[3] || "",
+                        site: cols[4] || "",
+                        batiment: cols[5] || "",
+                        rang: cols[6] || "",
+                        quantite: parseInt(cols[7]) || 0
+                    });
+                }
+            }
+
+            if (nouveauStock.length > 0) {
+                stockGlobalJson = nouveauStock;
+                localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobalJson));
+                console.log("📦 Stock global mis à jour depuis le CSV GitHub :", stockGlobalJson.length, "lignes.");
+            }
+        })
+        .catch(err => {
+            console.warn("⚠️ Mode hors-ligne ou erreur de chargement du CSV distant, utilisation du cache local :", err);
+            let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
+            if (stockSauvegarde) {
+                try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
             }
         });
+}
+
+// Téléchargement bloquant des miniatures avec barre de progression pour la première installation
+async function verifierEtprechargerMiniatures() {
+    if (!('caches' in window)) return;
+
+    const modal = document.getElementById('modalPremierLancement');
+    const barre = document.getElementById('barreProgressionInitiale');
+    const texte = document.getElementById('texteProgression');
+    const compteur = document.getElementById('compteurProgression');
+
+    try {
+        const cache = await caches.open('stock-terrain-v2');
+        const requetesCache = await cache.keys();
+        const imagesEnCache = new Set(requetesCache.map(r => r.url));
+
+        let aTelecharger = catalogueSymboleGlobal.filter(item => {
+            if (!item.symbole) return false;
+            let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+            return !imagesEnCache.has(imgUrl);
+        });
+
+        if (aTelecharger.length === 0) {
+            console.log("✅ Toutes les miniatures sont déjà en cache.");
+            if (modal) modal.style.display = 'none';
+            return;
+        }
+
+        if (modal) modal.style.display = 'flex';
+        let total = aTelecharger.length;
+        let telechargees = 0;
+
+        console.log(`📥 Téléchargement initial de ${total} miniatures manquantes...`);
+
+        for (let item of aTelecharger) {
+            let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+            try {
+                let response = await fetch(imgUrl);
+                if (response && response.ok) {
+                    await cache.put(imgUrl, response);
+                }
+            } catch (err) {
+                // Ignore les erreurs individuelles
+            }
+
+            telechargees++;
+            let pourcentage = Math.round((telechargees / total) * 100);
+            
+            if (barre) barre.style.width = pourcentage + '%';
+            if (compteur) compteur.textContent = `${telechargees} / ${total} (${pourcentage}%)`;
+        }
+
+        setTimeout(() => {
+            if (modal) modal.style.display = 'none';
+            console.log("🚀 Prêt pour le travail hors-ligne !");
+        }, 500);
+
+    } catch (err) {
+        console.error("Erreur lors du pré-chargement bloquant :", err);
+        if (modal) modal.style.display = 'none';
     }
 }
 
@@ -229,7 +323,7 @@ function validerMouvementStockJson() {
     let rang     = document.getElementById('stockRangJson').value.trim();
     let typeMvt  = document.getElementById('mouvementTypeJson').value;
 
-    if (qte <= 0)                      { alert("Quantité invalide");                            return; }
+    if (qte <= 0)                                { alert("Quantité invalide");                            return; }
     if (!site || !batiment || !rang)   { alert("Remplissez tous les champs d'emplacement.");   return; }
 
     dernierSiteSaisiJson     = site;
@@ -238,7 +332,7 @@ function validerMouvementStockJson() {
     let index = stockGlobalJson.findIndex(item =>
         String(item.symbole  || "").trim().toLowerCase() === String(articleCourantJson.symbole || "").trim().toLowerCase() &&
         (!item.plan || item.plan === "SYMB" || item.plan === articleCourantJson.plan) &&
-        String(item.site     || "").toLowerCase() === site.toLowerCase()     &&
+        String(item.site     || "").toLowerCase() === site.toLowerCase()      &&
         String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
         String(item.rang     || "").toLowerCase() === rang.toLowerCase()
     );
@@ -248,8 +342,8 @@ function validerMouvementStockJson() {
             stockGlobalJson[index].quantite = (parseInt(stockGlobalJson[index].quantite) || 0) + qte;
         } else {
             stockGlobalJson.push({
-                plan:      articleCourantJson.plan        || "SYMB",
-                rep:       "",
+                plan:      articleCourantJson.plan         || "SYMB",
+                rep:         "",
                 symbole:   articleCourantJson.symbole,
                 intitule: articleCourantJson.intitule || "",
                 site, batiment, rang,
@@ -279,54 +373,4 @@ function masquerLoaderGlobal() {
             setTimeout(() => loader.style.display = 'none', 400);
         }
     }, 200);
-}
-const GITHUB_STOCK_CSV_URL = GITHUB_BASE_URL + 'stock.csv';
-
-function chargerStockDepuisCsvDistant() {
-    fetch(GITHUB_STOCK_CSV_URL + '?t=' + new Date().getTime()) // Anti-cache pour forcer la fraîcheur
-        .then(res => {
-            if (!res.ok) throw new Error("Fichier stock.csv introuvable sur GitHub");
-            return res.text();
-        })
-        .then(csvText => {
-            let lignes = csvText.trim().split('\n');
-            if (lignes.length <= 1) return; // Ignore si vide ou juste l'en-tête
-
-            let nouveauStock = [];
-            // Détection automatique du séparateur (; ou ,)
-            let separateur = lignes[0].includes(';') ? ';' : ',';
-
-            for (let i = 1; i < lignes.length; i++) {
-                let lignePropre = lignes[i].trim();
-                if (!lignePropre) continue;
-
-                let cols = lignePropre.split(separateur).map(c => c.trim().replace(/^"|"$/g, ''));
-                
-                if (cols.length >= 8) {
-                    nouveauStock.push({
-                        plan: cols[0] || "",
-                        rep: cols[1] || "",
-                        symbole: cols[2] || "",
-                        intitule: cols[3] || "",
-                        site: cols[4] || "",
-                        batiment: cols[5] || "",
-                        rang: cols[6] || "",
-                        quantite: parseInt(cols[7]) || 0
-                    });
-                }
-            }
-
-            if (nouveauStock.length > 0) {
-                stockGlobalJson = nouveauStock;
-                localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobalJson));
-                console.log("📦 Stock global mis à jour depuis le CSV GitHub :", stockGlobalJson.length, "lignes.");
-            }
-        })
-        .catch(err => {
-            console.warn("⚠️ Mode hors-ligne ou erreur de chargement du CSV distant, utilisation du cache local :", err);
-            let stockSauvegarde = localStorage.getItem('stock_local_sauvegarde');
-            if (stockSauvegarde) {
-                try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
-            }
-        });
 }
