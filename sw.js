@@ -1,8 +1,10 @@
-const CACHE_NAME = 'stock-terrain-v1';
+const CACHE_NAME = 'stock-terrain-v2';
 const ASSETS_TO_CACHE = [
-    '.',
+    './',
     './index.html',
-    './script.js',
+    './pelican.js',
+    './json_mode.js',
+    './mapping.json',
     './manifest.json'
 ];
 
@@ -17,7 +19,7 @@ self.addEventListener('install', (e) => {
     self.skipWaiting();
 });
 
-// 2. Activation : nettoyage des anciens caches si vous faites des mises à jour
+// 2. Activation : nettoyage des anciens caches
 self.addEventListener('activate', (e) => {
     e.waitUntil(
         caches.keys().then((keys) => {
@@ -34,23 +36,46 @@ self.addEventListener('activate', (e) => {
     self.clients.claim();
 });
 
-// 3. Interception des requêtes : Stratégie "Cache d'abord, puis réseau" pour les fichiers locaux, 
-// et direct pour le catalogue/GitHub distant
+// 3. Interception des requêtes : Cache d'abord pour GitHub (miniatures & mapping) avec sauvegarde automatique
 self.addEventListener('fetch', (e) => {
-    // Si la requête vient de GitHub (vos miniatures ou mapping), on laisse passer ou on gère classiquement
     if (e.request.url.includes('raw.githubusercontent.com')) {
         e.respondWith(
-            fetch(e.request).catch(() => caches.match(e.request))
+            caches.match(e.request).then((cachedResponse) => {
+                if (cachedResponse) {
+                    // Si l'image ou le mapping est déjà en cache, on le sert immédiatement
+                    // et on tente de le rafraîchir en arrière-plan si le réseau est disponible
+                    fetch(e.request).then((networkResponse) => {
+                        if (networkResponse && networkResponse.status === 200) {
+                            caches.open(CACHE_NAME).then((cache) => {
+                                cache.put(e.request, networkResponse);
+                            });
+                        }
+                    }).catch(() => {});
+                    return cachedResponse;
+                }
+
+                // Si pas encore en cache, on va le chercher sur GitHub et on le stocke pour la prochaine fois
+                return fetch(e.request).then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200) {
+                        let responseClone = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(e.request, responseClone);
+                        });
+                    }
+                    return networkResponse;
+                }).catch(() => {
+                    // Repli si hors ligne et que l'élément n'a jamais été chargé
+                    return new Response("Hors ligne - Ressource non disponible", { status: 404, statusText: "Offline" });
+                });
+            })
         );
         return;
     }
 
-    // Pour le reste de l'application : Cache d'abord, puis mise à jour en arrière-plan via le réseau
+    // Pour le reste de l'application (fichiers locaux) : Cache d'abord, puis mise à jour en arrière-plan
     e.respondWith(
         caches.match(e.request).then((cachedResponse) => {
             if (cachedResponse) {
-                // On renvoie la version du cache immédiatement pour la vitesse
-                // Et on va chercher la version fraiche en arrière-plan
                 fetch(e.request).then((networkResponse) => {
                     if (networkResponse && networkResponse.status === 200) {
                         caches.open(CACHE_NAME).then((cache) => {
