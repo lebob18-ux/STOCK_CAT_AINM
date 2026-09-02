@@ -35,11 +35,8 @@ window.addEventListener('DOMContentLoaded', () => {
         })
         .then(data => {
             catalogueSymboleGlobal = data || [];
-            if (barre) barre.style.width = '60%';
+            if (barre) barre.style.width = '100%';
             console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "entrées.");
-            
-            // 3. Vérification et pré-chargement bloquant des miniatures si premier lancement
-            verifierEtprechargerMiniatures();
             
             masquerLoaderGlobal();
         })
@@ -148,98 +145,6 @@ function chargerStockDepuisCsvDistant() {
                 try { stockGlobalJson = JSON.parse(stockSauvegarde); } catch(e) { stockGlobalJson = []; }
             }
         });
-}
-
-// Téléchargement bloquant des miniatures avec barre de progression pour la première installation
-async function verifierEtprechargerMiniatures() {
-    if (!('caches' in window)) return;
-
-    // Si on est hors-ligne, inutile de poser la question, on utilise le cache actuel
-    if (!navigator.onLine) {
-        console.log("📴 Pas de réseau : utilisation directe du cache actuel.");
-        return;
-    }
-
-    try {
-        const cache = await caches.open('stock-terrain-v2');
-        const requetesCache = await cache.keys();
-        const imagesEnCache = new Set(requetesCache.map(r => r.url));
-
-        let aTelecharger = catalogueSymboleGlobal.filter(item => {
-            if (!item.symbole) return false;
-            let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
-            return !imagesEnCache.has(imgUrl);
-        });
-
-        // S'il n'y a rien de nouveau à télécharger, on ne fait rien
-        if (aTelecharger.length === 0) return;
-
-        // S'il y a de nouvelles miniatures, on affiche la modale de demande
-        const modalDemande = document.getElementById('modalDemandeTelechargement');
-        if (modalDemande) {
-            modalDemande.style.display = 'flex';
-
-            document.getElementById('btnAccepterTelechargement').onclick = async () => {
-                modalDemande.style.display = 'none';
-                await lancerTelechargementEnMasse(aTelecharger, cache);
-            };
-
-            document.getElementById('btnRefuserTelechargement').onclick = () => {
-                modalDemande.style.display = 'none';
-                console.log("❌ Téléchargement des miniatures refusé par l'utilisateur.");
-            };
-        }
-
-    } catch (err) {
-        console.error("Erreur lors de la vérification des miniatures :", err);
-    }
-}
-
-async function lancerTelechargementEnMasse(aTelecharger, cache) {
-    const modalProgression = document.getElementById('modalPremierLancement');
-    const barre = document.getElementById('barreProgressionInitiale');
-    const compteur = document.getElementById('compteurProgression');
-
-    if (modalProgression) modalProgression.style.display = 'flex';
-
-    let total = aTelecharger.length;
-    let telechargees = 0;
-    let securiteDebloquee = false;
-
-    let timerSecurite = setTimeout(() => {
-        if (!securiteDebloquee && modalProgression) {
-            console.warn("⚠️ Temps de pré-chargement dépassé, libération de l'interface.");
-            securiteDebloquee = true;
-            modalProgression.style.display = 'none';
-        }
-    }, 10000); // 10 secondes max pour éviter tout blocage réseau
-
-    for (let item of aTelecharger) {
-        if (securiteDebloquee) break;
-
-        let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
-        try {
-            let response = await fetch(imgUrl, { signal: AbortSignal.timeout(3000) });
-            if (response && response.ok) {
-                await cache.put(imgUrl, response);
-            }
-        } catch (err) {
-            // Ignore l'échec d'une image isolée et poursuit le téléchargement
-        }
-
-        telechargees++;
-        let pourcentage = Math.round((telechargees / total) * 100);
-
-        if (barre) barre.style.width = pourcentage + '%';
-        if (compteur) compteur.textContent = `${telechargees} / ${total} (${pourcentage}%)`;
-    }
-
-    clearTimeout(timerSecurite);
-    if (!securiteDebloquee && modalProgression) {
-        setTimeout(() => {
-            modalProgression.style.display = 'none';
-        }, 300);
-    }
 }
 
 function reinitialiserFicheJson() {
@@ -354,7 +259,7 @@ function validerMouvementStockJson() {
     let rang     = document.getElementById('stockRangJson').value.trim();
     let typeMvt  = document.getElementById('mouvementTypeJson').value;
 
-    if (qte <= 0)                                { alert("Quantité invalide");                            return; }
+    if (qte <= 0)                                 { alert("Quantité invalide");                            return; }
     if (!site || !batiment || !rang)   { alert("Remplissez tous les champs d'emplacement.");   return; }
 
     dernierSiteSaisiJson     = site;
@@ -374,7 +279,7 @@ function validerMouvementStockJson() {
         } else {
             stockGlobalJson.push({
                 plan:      articleCourantJson.plan         || "SYMB",
-                rep:         "",
+                rep:           "",
                 symbole:   articleCourantJson.symbole,
                 intitule: articleCourantJson.intitule || "",
                 site, batiment, rang,
