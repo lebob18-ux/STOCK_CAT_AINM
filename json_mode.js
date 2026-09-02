@@ -159,6 +159,13 @@ async function verifierEtprechargerMiniatures() {
     const texte = document.getElementById('texteProgression');
     const compteur = document.getElementById('compteurProgression');
 
+    // SÉCURITÉ HORS-LIGNE : Si pas de réseau, on ne bloque pas du tout
+    if (!navigator.onLine) {
+        console.log("📴 Mode hors-ligne détecté au démarrage : contournement du pré-chargement.");
+        if (modal) modal.style.display = 'none';
+        return;
+    }
+
     try {
         const cache = await caches.open('stock-terrain-v2');
         const requetesCache = await cache.keys();
@@ -171,7 +178,6 @@ async function verifierEtprechargerMiniatures() {
         });
 
         if (aTelecharger.length === 0) {
-            console.log("✅ Toutes les miniatures sont déjà en cache.");
             if (modal) modal.style.display = 'none';
             return;
         }
@@ -180,17 +186,27 @@ async function verifierEtprechargerMiniatures() {
         let total = aTelecharger.length;
         let telechargees = 0;
 
-        console.log(`📥 Téléchargement initial de ${total} miniatures manquantes...`);
+        // SÉCURITÉ TEMPORELLE : Si le téléchargement traîne trop ou bloque, on libère l'app au bout de 5 secondes max
+        let securiteDebloquee = false;
+        let timerSecurite = setTimeout(() => {
+            if (!securiteDebloquee && modal) {
+                console.warn("⚠️ Temps de pré-chargement dépassé, libération de l'interface.");
+                securiteDebloquee = true;
+                modal.style.display = 'none';
+            }
+        }, 5000);
 
         for (let item of aTelecharger) {
+            if (securiteDebloquee) break; // Arrête la boucle si le timer a coupé
+
             let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
             try {
-                let response = await fetch(imgUrl);
+                let response = await fetch(imgUrl, { signal: AbortSignal.timeout(2000) }); // Timeout de 2s par image
                 if (response && response.ok) {
                     await cache.put(imgUrl, response);
                 }
             } catch (err) {
-                // Ignore les erreurs individuelles
+                // Ignore l'erreur et continue
             }
 
             telechargees++;
@@ -200,14 +216,16 @@ async function verifierEtprechargerMiniatures() {
             if (compteur) compteur.textContent = `${telechargees} / ${total} (${pourcentage}%)`;
         }
 
-        setTimeout(() => {
-            if (modal) modal.style.display = 'none';
-            console.log("🚀 Prêt pour le travail hors-ligne !");
-        }, 500);
+        clearTimeout(timerSecurite);
+        if (!securiteDebloquee) {
+            setTimeout(() => {
+                if (modal) modal.style.display = 'none';
+            }, 300);
+        }
 
     } catch (err) {
-        console.error("Erreur lors du pré-chargement bloquant :", err);
-        if (modal) modal.style.display = 'none';
+        console.error("Erreur lors du pré-chargement :", err);
+        if (modal) modal.style.display = 'none'; // S'assure de débloquer en cas d'erreur
     }
 }
 
