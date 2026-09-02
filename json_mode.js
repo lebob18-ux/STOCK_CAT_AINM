@@ -19,7 +19,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (el) el.addEventListener('focus', function() { this.select(); });
     });
 
-let barre = document.getElementById('barreProgression');
+    let barre = document.getElementById('barreProgression');
     if (barre) barre.style.width = '60%';
 
     fetch(GITHUB_BASE_URL + 'mapping.json')
@@ -31,6 +31,10 @@ let barre = document.getElementById('barreProgression');
             catalogueSymboleGlobal = data || [];
             if (barre) barre.style.width = '100%';
             console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "entrées.");
+            
+            // Lancement du téléchargement automatique de toutes les miniatures en arrière-plan
+            prechargerToutesLesMiniatures();
+            
             masquerLoaderGlobal();
         })
         .catch(err => {
@@ -55,7 +59,6 @@ let barre = document.getElementById('barreProgression');
             container.innerHTML = '';
             if (val.length < 1) return;
 
-            // Filtre uniquement sur symbole et plan (pas designation)
             let matches = catalogueSymboleGlobal.filter(item =>
                 String(item.symbole || "").toLowerCase().includes(val) ||
                 String(item.plan || "").toLowerCase().includes(val)
@@ -85,7 +88,6 @@ let barre = document.getElementById('barreProgression');
 
                 div.addEventListener('mouseover', () => div.style.background = '#f1f8ff');
                 div.addEventListener('mouseout',  () => div.style.background = 'white');
-                // FIX apostrophe : addEventListener au lieu de onclick inline
                 div.addEventListener('click', () => {
                     container.innerHTML = '';
                     document.getElementById('inputSymboleJson').value = item.symbole;
@@ -97,6 +99,23 @@ let barre = document.getElementById('barreProgression');
         });
     }
 });
+
+function prechargerToutesLesMiniatures() {
+    if (!navigator.onLine) return; 
+
+    console.log("📥 Démarrage du pré-chargement des miniatures en arrière-plan...");
+
+    if (typeof catalogueSymboleGlobal !== 'undefined' && catalogueSymboleGlobal.length > 0) {
+        catalogueSymboleGlobal.forEach((item, index) => {
+            if (item.symbole) {
+                let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+                setTimeout(() => {
+                    fetch(imgUrl, { mode: 'no-cors' }).catch(err => {});
+                }, index * 50);
+            }
+        });
+    }
+}
 
 function reinitialiserFicheJson() {
     articleCourantJson = null;
@@ -117,8 +136,8 @@ function reinitialiserFicheJson() {
 function afficherFicheSymboleJson(symItem) {
     articleCourantJson = symItem;
 
-    let numPlan      = symItem.plan        || "-";
-    let numSy        = symItem.symbole     || "-";
+    let numPlan     = symItem.plan        || "-";
+    let numSy       = symItem.symbole     || "-";
     let intituleTexte = symItem.intitule || "Sans intitulé";
 
     document.getElementById('resPlanJson').textContent     = `Plan : ${numPlan}`;
@@ -160,7 +179,6 @@ function afficherFicheSymboleJson(symItem) {
 
         if (existantsSym.length > 0) {
             existantsSym.forEach(ex => {
-                // FIX apostrophe : construction DOM au lieu de onclick inline
                 let ligne = document.createElement('div');
                 ligne.style.cssText = "cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;";
                 ligne.innerHTML = `
@@ -211,7 +229,7 @@ function validerMouvementStockJson() {
     let rang     = document.getElementById('stockRangJson').value.trim();
     let typeMvt  = document.getElementById('mouvementTypeJson').value;
 
-    if (qte <= 0)                      { alert("Quantité invalide");                           return; }
+    if (qte <= 0)                      { alert("Quantité invalide");                            return; }
     if (!site || !batiment || !rang)   { alert("Remplissez tous les champs d'emplacement.");   return; }
 
     dernierSiteSaisiJson     = site;
@@ -230,9 +248,9 @@ function validerMouvementStockJson() {
             stockGlobalJson[index].quantite = (parseInt(stockGlobalJson[index].quantite) || 0) + qte;
         } else {
             stockGlobalJson.push({
-                plan:     articleCourantJson.plan        || "SYMB",
-                rep:      "",
-                symbole:  articleCourantJson.symbole,
+                plan:      articleCourantJson.plan        || "SYMB",
+                rep:       "",
+                symbole:   articleCourantJson.symbole,
                 intitule: articleCourantJson.intitule || "",
                 site, batiment, rang,
                 quantite: qte
@@ -252,6 +270,7 @@ function validerMouvementStockJson() {
     reinitialiserFicheJson();
     alert("✅ Mouvement JSON enregistré avec succès !");
 }
+
 function masquerLoaderGlobal() {
     setTimeout(() => {
         let loader = document.getElementById('loaderGlobal');
