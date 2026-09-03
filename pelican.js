@@ -3,7 +3,7 @@ const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Initialisation sécurisée de Supabase (évite la double déclaration)
+// Initialisation sécurisée de Supabase sur window
 if (typeof window.supabaseClient === 'undefined') {
     window.supabaseClient = null;
     if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -12,7 +12,6 @@ if (typeof window.supabaseClient === 'undefined') {
         console.warn("⚠️ Le client Supabase n'a pas pu être initialisé.");
     }
 }
-let supabase = window.supabaseClient;
 
 let cataloguePlanGlobal = [];
 let stockGlobal = [];
@@ -166,8 +165,8 @@ function afficherFichePelican(article) {
     let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
     img.src = imageParDefaut;
 
-    if (supabase) {
-        supabase.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
+    if (window.supabaseClient) {
+        window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
             .then(({ data, error }) => {
                 let elImg = document.getElementById(imgMainId);
                 if (elImg && data && !error) {
@@ -262,8 +261,8 @@ function afficherFichePelican(article) {
             row.innerHTML = htmlSy;
             contenuEclate.appendChild(row);
 
-            if (supabase) {
-                supabase.storage.from('MIGNATURE_K1').createSignedUrl(`${c.symbole}.jpg`, 60)
+            if (window.supabaseClient) {
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${c.symbole}.jpg`, 60)
                     .then(({ data }) => {
                         let elImg = document.getElementById(imgId);
                         if (elImg && data) elImg.src = data.signedUrl;
@@ -380,4 +379,4 @@ function validerMouvementStock() {
 function imprimerFichePelican() {
     window.print();
 }
-// bob
+//21h03
