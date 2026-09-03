@@ -1,3 +1,4 @@
+const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 if (typeof VERSION_APP_JSON === 'undefined') {
     var VERSION_APP_JSON = "JSON-ONGLET-V1-SUPABASE";
 }
