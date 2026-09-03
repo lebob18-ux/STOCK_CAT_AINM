@@ -3,7 +3,14 @@ const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// Initialisation sécurisée de Supabase pour éviter les plantages si le SDK est absent
+let supabase = null;
+if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+} else {
+    console.warn("⚠️ Le client Supabase n'a pas pu être initialisé. Vérifiez l'inclusion du script CDN Supabase dans le HTML.");
+}
 
 let cataloguePlanGlobal = [];
 let stockGlobal = [];
@@ -42,7 +49,8 @@ function reinitialiserFicheEtSaisies() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(masquerLoader, 2000);
+    // Sécurité : forcer la suppression du loader après 2.5 secondes maximum quoi qu'il arrive
+    const fallbackLoader = setTimeout(masquerLoader, 2500);
 
     console.log(`%c[PELICAN MODE] : ${VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
 
@@ -54,24 +62,36 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx').then(res => res.arrayBuffer()).then(buffer => {
-            let workbook = XLSX.read(buffer, { type: 'array' });
-            let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            return donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "").map(row => ({
-                pelican: String(row.PELICAN || "").trim(),
-                plan: String(row.PLAN || "").trim(),
-                rep: (String(row.REP || "").trim() === "" || String(row.REP || "").trim() === "******") ? "000000" : String(row.REP || "").trim(),
-                intitule: String(row.INT_PLAN || "").trim(),
-                symbole: String(row.SYMBOLE_ECLATE || "").trim(),
-                quantite: parseInt(row.QUANTITE) || 1,
-                designation: String(row.DESIGNATION || "").trim()
-            }));
-        }).catch(() => []),
+        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
+            .then(res => {
+                if (!res.ok) throw new Error("Erreur réseau PELICAN1.xlsx");
+                return res.arrayBuffer();
+            })
+            .then(buffer => {
+                let workbook = XLSX.read(buffer, { type: 'array' });
+                let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                return donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "").map(row => ({
+                    pelican: String(row.PELICAN || "").trim(),
+                    plan: String(row.PLAN || "").trim(),
+                    rep: (String(row.REP || "").trim() === "" || String(row.REP || "").trim() === "******") ? "000000" : String(row.REP || "").trim(),
+                    intitule: String(row.INT_PLAN || "").trim(),
+                    symbole: String(row.SYMBOLE_ECLATE || "").trim(),
+                    quantite: parseInt(row.QUANTITE) || 1,
+                    designation: String(row.DESIGNATION || "").trim()
+                }));
+            })
+            .catch(err => {
+                console.warn("⚠️ Impossible de charger PELICAN1.xlsx :", err);
+                return [];
+            }),
         Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
     ]).then(([planData, stockSauvegarde]) => {
         cataloguePlanGlobal = planData || [];
-        if (stockSauvegarde) stockGlobal = JSON.parse(stockSauvegarde);
+        if (stockSauvegarde) {
+            try { stockGlobal = JSON.parse(stockSauvegarde); } catch(e) { stockGlobal = []; }
+        }
     }).finally(() => {
+        clearTimeout(fallbackLoader);
         masquerLoader();
     });
 
@@ -318,6 +338,7 @@ function validerMouvementStock() {
     
     alert("✅ Mouvement Pelican enregistré avec succès !");
 }
+
 function imprimerFichePelican() {
     window.print();
 }
