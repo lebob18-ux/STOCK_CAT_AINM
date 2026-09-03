@@ -1,6 +1,5 @@
 const VERSION_APP = "PELICAN-ONGLET-V1";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
-const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
@@ -56,7 +55,6 @@ function reinitialiserFicheEtSaisies() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Sécurité : masquer le loader après 3 secondes maximum quoiqu'il arrive
     const fallbackLoader = setTimeout(masquerLoader, 3000);
 
     console.log(`%c[PELICAN MODE] : ${VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
@@ -158,8 +156,25 @@ function afficherFichePelican(article) {
 
     let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
-    img.src = `${GITHUB_IMG_URL}${plan6}.jpg`;
-    img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+    let cheminImage = `${plan6}.jpg`;
+
+    let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+
+    if (supabase) {
+        supabase.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
+            .then(({ data, error }) => {
+                if (error || !data) {
+                    img.src = imageParDefaut;
+                } else {
+                    img.src = data.signedUrl;
+                }
+            })
+            .catch(() => { img.src = imageParDefaut; });
+    } else {
+        img.src = imageParDefaut;
+    }
+
+    img.onerror = () => { img.src = imageParDefaut; };
 
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
@@ -218,9 +233,10 @@ function afficherFichePelican(article) {
             
             let intituleSy = c.designation || "Sans intitulé";
             let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
+            let imgId = `img_sy_${c.symbole}_${Math.random().toString(36).substr(2, 5)}`;
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img id="${imgId}" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ELoading...%3C/text%3E%3C/svg%3E" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
@@ -242,6 +258,14 @@ function afficherFichePelican(article) {
             }
             row.innerHTML = htmlSy;
             contenuEclate.appendChild(row);
+
+            if (supabase) {
+                supabase.storage.from('MIGNATURE_K1').createSignedUrl(`${c.symbole}.jpg`, 60)
+                    .then(({ data }) => {
+                        let elImg = document.getElementById(imgId);
+                        if (elImg && data) elImg.src = data.signedUrl;
+                    });
+            }
         });
     }
 
@@ -332,7 +356,7 @@ function validerMouvementStock() {
             String(item.plan || "").trim() === String(comp.plan || "").trim() &&
             String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
             String(item.site || "").toLowerCase() === String(stItem.site || "").toLowerCase() &&
-            String(item.batiment || "").toLowerCase() === String(stItem.batiment || "").toLowerCase() &&
+            String(item.batiment || "").toLowerCase() === String(stItem.batino || stItem.batiment || "").toLowerCase() &&
             String(item.rang || "").toLowerCase() === String(stItem.rang || "").toLowerCase()
         );
 
