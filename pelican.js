@@ -202,7 +202,9 @@ let plan6 = String(article.plan).trim().padStart(6, '0');
             .catch(() => {});
     }
 
+    if (img) {
     img.onerror = () => { img.src = imageParDefaut; };
+}
 
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
