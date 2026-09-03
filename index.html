@@ -5,51 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestion Stock Terrain</title>
 
-<style>
-@media print {
-    /* Masquer tout le superflu */
-    body * {
-        visibility: hidden;
+    <!-- ================================================================= -->
+    <!-- SECTION : STYLES CSS ET RÈGLES D'IMPRESSION                        -->
+    <!-- ================================================================= -->
+    <style>
+    @media print {
+        body * { visibility: hidden; }
+        #ongletPelican, #ongletPelican * { visibility: visible; }
+        #ongletPelican { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 0; }
+        #inputPlan, #listePlanResultats, button { display: none !important; }
     }
-    /* Rendre visible uniquement l'onglet Pelican et son contenu */
-    #ongletPelican, #ongletPelican * {
-        visibility: visible;
-    }
-    #ongletPelican {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-    }
-    /* Masquer les champs de recherche et boutons interactifs superflus sur le PDF */
-    #inputPlan, #listePlanResultats, button {
-        display: none !important;
-    }
-}
-</style>
+    </style>
 </head>
-<body>    
-<div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.4s ease;">
-    <h2 style="font-family: sans-serif; color: #0056b3; font-size: 18px; margin-bottom: 15px;">Chargement des données...</h2>
-    <!-- Barre de progression style ascenseur -->
-    <div style="width: 220px; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; border: 1px solid #ced4da;">
-        <div id="barreProgression" style="width: 30%; height: 100%; background: #0056b3; transition: width 0.3s ease;"></div>
+<body>
+
+    <!-- ================================================================= -->
+    <!-- SECTION : LOADER GLOBAL DE CHARGEMENT                             -->
+    <!-- ================================================================= -->
+    <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.4s ease;">
+        <h2 style="font-family: sans-serif; color: #0056b3; font-size: 18px; margin-bottom: 15px;">Chargement des données...</h2>
+        <div style="width: 220px; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; border: 1px solid #ced4da;">
+            <div id="barreProgression" style="width: 30%; height: 100%; background: #0056b3; transition: width 0.3s ease;"></div>
+        </div>
     </div>
-</div>
+
     <div style="padding: 15px; max-width: 600px; margin: auto; font-family: sans-serif;">
         
-        <!-- BANDEAU DE VERSION -->
+        <!-- ================================================================= -->
+        <!-- SECTION : BANDEAU DE VERSION & ONGLETS DE NAVIGATION              -->
+        <!-- ================================================================= -->
         <div id="bandeauVersion" style="background: #0056b3; color: white; padding: 6px 12px; font-size: 13px; font-weight: bold; text-align: center; margin-bottom: 15px; border-radius: 4px;">Mode Ensemble Actif</div>
 
-        <!-- ONGLETS DE NAVIGATION -->
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <button type="button" onclick="changerOnglet('pelican')" id="btnTabPelican" style="flex: 1; padding: 12px; background: #0056b3; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">📦 Ensemble (Eclaté)</button>
             <button type="button" onclick="changerOnglet('json')" id="btnTabJson" style="flex: 1; padding: 12px; background: #e9ecef; color: #333; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">🔍 SY (JSON)</button>
         </div>
 
-        <!-- ONGLET 1 : PELICAN (Ensembles) -->
+        <!-- ================================================================= -->
+        <!-- SECTION : ONGLET 1 - PELICAN (ENSEMBLES)                          -->
+        <!-- ================================================================= -->
         <div id="ongletPelican" style="display: block;">
             <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
                 <div style="position: relative;">
@@ -59,7 +53,6 @@
                 </div>
             </div>
 
-            <!-- ZONE DE RÉSULTAT / FICHE PELICAN -->
             <div id="resultat" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
                 <div style="text-align: center; margin-bottom: 15px;">
                     <span id="resPlan" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
@@ -76,7 +69,9 @@
             </div>
         </div>
 
-        <!-- ONGLET 2 : JSON / SYMBOLES -->
+        <!-- ================================================================= -->
+        <!-- SECTION : ONGLET 2 - JSON / SYMBOLES (SY)                         -->
+        <!-- ================================================================= -->
         <div id="ongletJson" style="display: none;">
             <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
                 <div style="position: relative;">
@@ -86,7 +81,6 @@
                 </div>
             </div>
 
-            <!-- ZONE DE RÉSULTAT / FICHE JSON -->
             <div id="resultatJson" style="display: none; background: white; border: 1px solid #ccc; border-radius: 8px; padding: 15px;">
                 <div style="text-align: center; margin-bottom: 15px;">
                     <span id="resPlanJson" style="background: #0056b3; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;"></span>
@@ -102,7 +96,9 @@
             </div>
         </div>
 
-        <!-- BOUTONS ACTIONS GLOBALES -->
+        <!-- ================================================================= -->
+        <!-- SECTION : BOUTONS D'ACTIONS GLOBALES                              -->
+        <!-- ================================================================= -->
         <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
             <button type="button" onclick="partagerStock()" style="background: #17a2b8; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1;">📤 Partager le Stock</button>
             <button type="button" onclick="imprimerFichePelican()" style="background: #dc3545; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold;">🖨️ Imprimer / PDF Éclaté & Miniatures</button>
@@ -111,7 +107,9 @@
 
     </div>
 
-    <!-- MODALE STOCK (PELICAN) -->
+    <!-- ================================================================= -->
+    <!-- SECTION : MODALE DE GESTION DES STOCKS (PELICAN)                  -->
+    <!-- ================================================================= -->
     <div id="modalOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 99999;">
         <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
             <h3 id="modalTitre" style="margin-top: 0; color: #0056b3; font-size: 16px;"></h3>
@@ -152,7 +150,9 @@
         </div>
     </div>
 
-    <!-- MODALE STOCK (JSON) -->
+    <!-- ================================================================= -->
+    <!-- SECTION : MODALE DE GESTION DES STOCKS (JSON / SY)                -->
+    <!-- ================================================================= -->
     <div id="modalOverlayJson" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 99999;">
         <div style="background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 400px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);">
             <h3 id="modalTitreJson" style="margin-top: 0; color: #0056b3; font-size: 16px;"></h3>
@@ -187,13 +187,17 @@
         </div>
     </div>
 
-    <!-- SCRIPTS REQUIS -->
+    <!-- ================================================================= -->
+    <!-- SECTION : SCRIPTS JAVASCRIPT ET FONCTIONS MÉTIER ISOLÉES          -->
+    <!-- ================================================================= -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="pelican.js"></script>
 
-    <!-- SCRIPT DE BASCULE DES ONGLETS & GESTION SY -->
     <script>
+        /* ---------------------------------------------------- */
+        /* Fonction 1 : Gestion du basculement entre les onglets */
+        /* ---------------------------------------------------- */
         function changerOnglet(nomOnglet) {
             let ongletPelican = document.getElementById('ongletPelican');
             let ongletJson = document.getElementById('ongletJson');
@@ -222,6 +226,9 @@
             }
         }
 
+        /* ---------------------------------------------------- */
+        /* Fonction 2 : Partage ou téléchargement du fichier JSON */
+        /* ---------------------------------------------------- */
         async function partagerStock() {
             let stockData = localStorage.getItem('stock_local_sauvegarde') || '[]';
             let blob = new Blob([stockData], { type: 'application/json' });
@@ -254,7 +261,9 @@
             URL.revokeObjectURL(url);
         }
 
-        // --- GESTION DE LA RECHERCHE SY (JSON) ---
+        /* ---------------------------------------------------- */
+        /* Fonction 3 : Initialisation des écouteurs d'événements */
+        /* ---------------------------------------------------- */
         let articleJsonCourant = null;
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -266,118 +275,127 @@
             }
         });
 
-function afficherSuggestionsJson() {
-    let container = document.getElementById('suggestionsJson');
-    if (!container) return;
-    container.innerHTML = '';
-    let val = document.getElementById('inputSymboleJson').value.toLowerCase().trim();
-    if (!val) return;
+        /* ---------------------------------------------------- */
+        /* Fonction 4 : Affichage dynamique des suggestions SY  */
+        /* ---------------------------------------------------- */
+        function afficherSuggestionsJson() {
+            let container = document.getElementById('suggestionsJson');
+            if (!container) return;
+            container.innerHTML = '';
+            let val = document.getElementById('inputSymboleJson').value.toLowerCase().trim();
+            if (!val) return;
 
-    let matches = cataloguePlanGlobal.filter(item => {
-        let sy = String(item.symbole || "").toLowerCase().trim();
-        let des = String(item.designation || "").toLowerCase().trim();
-        let p = String(item.plan || "").toLowerCase().trim();
-        return sy.includes(val) || des.includes(val) || p.includes(val);
-    });
+            let matches = cataloguePlanGlobal.filter(item => {
+                let sy = String(item.symbole || "").toLowerCase().trim();
+                let des = String(item.designation || "").toLowerCase().trim();
+                let p = String(item.plan || "").toLowerCase().trim();
+                return sy.includes(val) || des.includes(val) || p.includes(val);
+            });
 
-    let uniques = [...new Map(matches.map(item => [item.symbole || item.plan, item])).values()].slice(0, 10);
-    if (uniques.length === 0) {
-        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun symbole SY trouvé</div>';
-        return;
-    }
+            let uniques = [...new Map(matches.map(item => [item.symbole || item.plan, item])).values()].slice(0, 10);
+            if (uniques.length === 0) {
+                container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun symbole SY trouvé</div>';
+                return;
+            }
 
-    let wrapper = document.createElement('div');
-    wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+            let wrapper = document.createElement('div');
+            wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
 
-    uniques.forEach(article => {
-        let div = document.createElement('div');
-        div.style.cssText = "padding: 8px 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 10px;";
-        
-        let thumbId = 'thumb_sug_' + Math.random().toString(36.substr(2, 5));
-        div.innerHTML = `
-            <div style="width: 40px; height: 40px; background: #f1f3f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
-                <span style="font-size: 9px; color: #aaa;" id="${thumbId}_txt">Img</span>
-            </div>
-            <div style="flex: 1; overflow: hidden;">
-                <strong>SY : ${article.symbole || 'N/A'}</strong> | Plan : ${article.plan}<br>
-                <small style="color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${article.designation || article.intitule || ''}</small>
-            </div>`;
+            uniques.forEach(article => {
+                let div = document.createElement('div');
+                div.style.cssText = "padding: 8px 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 10px;";
+                
+                let thumbId = 'thumb_sug_' + Math.random().toString(36).substr(2, 5);
+                div.innerHTML = `
+                    <div id="${thumbId}" style="width: 40px; height: 40px; background: #f1f3f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                        <span style="font-size: 9px; color: #aaa;">Img</span>
+                    </div>
+                    <div style="flex: 1; overflow: hidden;">
+                        <strong>SY : ${article.symbole || 'N/A'}</strong> | Plan : ${article.plan}<br>
+                        <small style="color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${article.designation || article.intitule || ''}</small>
+                    </div>`;
 
-        // Charger la miniature pour la suggestion en arrière-plan
-        if (window.supabaseClient && article.symbole) {
-            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${String(article.symbole).trim()}.jpg`, 60)
-                .then(({ data }) => {
-                    let parentBox = div.querySelector('div');
-                    if (data && data.signedUrl && parentBox) {
-                        parentBox.innerHTML = `<img src="${data.signedUrl}" style="width: 100%; height: 100%; object-fit: contain;">`;
-                    }
+                if (window.supabaseClient && article.symbole) {
+                    let symbolePropre = String(article.symbole).trim();
+                    window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${symbolePropre}.jpg`, 60)
+                        .then(({ data }) => {
+                            let boxImg = document.getElementById(thumbId);
+                            if (data && data.signedUrl && boxImg) {
+                                boxImg.innerHTML = `<img src="${data.signedUrl}" style="width: 100%; height: 100%; object-fit: contain;">`;
+                            }
+                        });
+                }
+
+                div.addEventListener('click', () => {
+                    document.getElementById('inputSymboleJson').value = article.symbole || article.plan;
+                    container.innerHTML = '';
+                    afficherFicheJson(article);
                 });
+                wrapper.appendChild(div);
+            });
+            container.appendChild(wrapper);
         }
 
-        div.addEventListener('click', () => {
-            document.getElementById('inputSymboleJson').value = article.symbole || article.plan;
-            container.innerHTML = '';
-            afficherFicheJson(article);
-        });
-        wrapper.appendChild(div);
-    });
-    container.appendChild(wrapper);
-}
+        /* ---------------------------------------------------- */
+        /* Fonction 5 : Affichage de la fiche article SY (JSON) */
+        /* ---------------------------------------------------- */
+        function afficherFicheJson(article) {
+            articleJsonCourant = article;
+            document.getElementById('resPlanJson').textContent = "Plan: " + (article.plan || '-');
+            document.getElementById('resRepJson').textContent = "SY: " + (article.symbole || '-');
+            document.getElementById('resIntituleJson').textContent = article.designation || article.intitule || '-';
 
-function afficherFicheJson(article) {
-    articleJsonCourant = article;
-    document.getElementById('resPlanJson').textContent = "Plan: " + (article.plan || '-');
-    document.getElementById('resRepJson').textContent = "SY: " + (article.symbole || '-');
-    document.getElementById('resIntituleJson').textContent = article.designation || article.intitule || '-';
+            let img = document.getElementById('imgPieceJson');
+            let defaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EChargement miniature...%3C/text%3E%3C/svg%3E';
+            img.src = defaut;
 
-    let img = document.getElementById('imgPieceJson');
-    let defaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EChargement miniature...%3C/text%3E%3C/svg%3E';
-    img.src = defaut;
+            if (window.supabaseClient && article.symbole) {
+                let symbolePropre = String(article.symbole).trim();
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${symbolePropre}.jpg`, 60)
+                    .then(({ data }) => {
+                        if (data && data.signedUrl && articleJsonCourant.symbole === article.symbole) {
+                            img.src = data.signedUrl;
+                        } else {
+                            img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+                        }
+                    })
+                    .catch(() => {
+                        img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+                    });
+            }
 
-    if (window.supabaseClient && article.symbole) {
-        let symbolePropre = String(article.symbole).trim();
-        window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${symbolePropre}.jpg`, 60)
-            .then(({ data }) => {
-                if (data && data.signedUrl && articleJsonCourant.symbole === article.symbole) {
-                    img.src = data.signedUrl;
-                } else {
-                    img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
-                }
-            })
-            .catch(() => {
-                img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
-            });
-    }
+            let existants = stockGlobal.filter(s => 
+                String(s.plan || "").trim() === String(article.plan || "").trim() &&
+                String(s.symbole || "").trim().toLowerCase() === String(article.symbole || "").trim().toLowerCase()
+            );
 
-    let existants = stockGlobal.filter(s => 
-        String(s.plan || "").trim() === String(article.plan || "").trim() &&
-        String(s.symbole || "").trim().toLowerCase() === String(article.symbole || "").trim().toLowerCase()
-    );
+            let divStock = document.getElementById('infoStockActuelJson');
+            divStock.style.display = 'block';
+            let html = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock SY :</strong>
+                        <button type="button" onclick="ouvrirModalStockJson(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
+                      </div>`;
 
-    let divStock = document.getElementById('infoStockActuelJson');
-    divStock.style.display = 'block';
-    let html = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
-    html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock SY :</strong>
-                <button type="button" onclick="ouvrirModalStockJson(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
-              </div>`;
+            if (existants.length > 0) {
+                existants.forEach(ex => {
+                    let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+                    html += `<div onclick="ouvrirModalStockJson(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                        <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+                    </div>`;
+                });
+            } else {
+                html += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole.</div>`;
+            }
+            html += `</div>`;
+            divStock.innerHTML = html;
+            document.getElementById('resultatJson').style.display = 'block';
+        }
 
-    if (existants.length > 0) {
-        existants.forEach(ex => {
-            let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-            html += `<div onclick="ouvrirModalStockJson(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
-                <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
-            </div>`;
-        });
-    } else {
-        html += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole.</div>`;
-    }
-    html += `</div>`;
-    divStock.innerHTML = html;
-    document.getElementById('resultatJson').style.display = 'block';
-}
-
+        /* ---------------------------------------------------- */
+        /* Fonction 6 : Ouverture et fermeture de la modale SY  */
+        /* ---------------------------------------------------- */
         function ouvrirModalStockJson(existant) {
             if (!articleJsonCourant) return;
             document.getElementById('modalTitreJson').textContent = existant ? "Modifier stock SY" : "Ajouter stock SY";
@@ -395,6 +413,9 @@ function afficherFicheJson(article) {
             document.getElementById('modalOverlayJson').style.display = 'none';
         }
 
+        /* ---------------------------------------------------- */
+        /* Fonction 7 : Validation et sauvegarde du stock SY    */
+        /* ---------------------------------------------------- */
         function validerMouvementStockJson() {
             if (!articleJsonCourant) return;
             let site = document.getElementById('stockSiteJson').value.trim();
