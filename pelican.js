@@ -160,21 +160,21 @@ function afficherFichePelican(article) {
     let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
     let cheminImage = `${plan6}.jpg`;
+    let imgMainId = `img_main_${Math.random().toString(36).substr(2, 5)}`;
+    img.id = imgMainId;
 
     let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+    img.src = imageParDefaut;
 
     if (supabase) {
         supabase.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
             .then(({ data, error }) => {
-                if (error || !data) {
-                    img.src = imageParDefaut;
-                } else {
-                    img.src = data.signedUrl;
+                let elImg = document.getElementById(imgMainId);
+                if (elImg && data && !error) {
+                    elImg.src = data.signedUrl;
                 }
             })
-            .catch(() => { img.src = imageParDefaut; });
-    } else {
-        img.src = imageParDefaut;
+            .catch(() => {});
     }
 
     img.onerror = () => { img.src = imageParDefaut; };
@@ -182,7 +182,7 @@ function afficherFichePelican(article) {
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
-        (!item.symbole || item.symbole === "")
+        (!item.symbole || item.symbole === "" || item.symbole === "0")
     );
 
     let divStock = document.getElementById('infoStockActuel');
@@ -338,7 +338,7 @@ function validerMouvementStock() {
         let index = stockGlobal.findIndex(item =>
             String(item.plan || "").trim() === String(articleCourant.plan || "").trim() &&
             String(item.rep || "").trim() === String(articleCourant.rep || "").trim() &&
-            (!item.symbole || item.symbole === "") &&
+            (!item.symbole || item.symbole === "" || item.symbole === "0") &&
             String(item.site || "").toLowerCase() === site.toLowerCase() &&
             String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
             String(item.rang || "").toLowerCase() === rang.toLowerCase()
@@ -380,3 +380,4 @@ function validerMouvementStock() {
 function imprimerFichePelican() {
     window.print();
 }
+// bob
