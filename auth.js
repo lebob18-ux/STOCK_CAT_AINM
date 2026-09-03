@@ -1,14 +1,17 @@
-// --- 1. CONFIGURATION SUPABASE (Clés publiques anonymes uniquement)23-35 ---
+// --- 1. CONFIGURATION SUPABASE SÉCURISÉE (ANTI-DOUBLON GLOBAL)23h42 ---
+if (typeof window.SUPABASE_URL === 'undefined') {
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
+}
 
-// Initialisation sécurisée du client
-const supabaseClientAuth = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+if (typeof window.supabaseClientAuth === 'undefined' && window.supabase) {
+    window.supabaseClientAuth = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+}
 
 // --- 2. VÉRIFICATION AUTOMATIQUE AU CHARGEMENT ---
 document.addEventListener("DOMContentLoaded", async () => {
-    if (!supabaseClientAuth) {
-        console.error("Erreur critique : La bibliothèque Supabase n'est pas chargée.");
+    if (!window.supabaseClientAuth) {
+        console.error("Erreur critique : La bibliothèque Supabase n'est pas initialisée.");
         return;
     }
     await verifierAcces();
@@ -25,26 +28,22 @@ async function verifierAcces() {
         return;
     }
 
-    // Interrogation sécurisée de la base
     try {
-        const { data, error } = await supabaseClientAuth
+        const { data, error } = await window.supabaseClientAuth
             .from('utilisateurs_K1')
             .select('valide')
             .eq('email', savedEmail)
             .single();
 
         if (error || !data) {
-            // Email inconnu ou supprimé de la base
             localStorage.removeItem('user_email_app');
             afficherFormulaire(overlay, formDemande, attenteValidation);
             return;
         }
 
         if (data.valide === true) {
-            // ACCÈS AUTORISÉ : On retire l'overlay de protection
             if (overlay) overlay.style.display = 'none';
         } else {
-            // ACCÈS EN ATTENTE
             afficherAttente(overlay, formDemande, attenteValidation);
         }
     } catch (err) {
@@ -54,17 +53,24 @@ async function verifierAcces() {
 
 // --- 3. ENREGISTREMENT SÉCURISÉ DE LA DEMANDE ---
 async function envoyerDemandeAcces() {
-    const prenom = document.getElementById('req-prenom').value.trim();
-    const nom = document.getElementById('req-nom').value.trim();
-    const email = document.getElementById('req-email').value.trim().toLowerCase();
+    const prenomInput = document.getElementById('req-prenom');
+    const nomInput = document.getElementById('req-nom');
+    const emailInput = document.getElementById('req-email');
 
-    // Validation basique des champs
+    if (!prenomInput || !nomInput || !emailInput) {
+        alert("Champs du formulaire introuvables dans le HTML.");
+        return;
+    }
+
+    const prenom = prenomInput.value.trim();
+    const nom = nomInput.value.trim();
+    const email = emailInput.value.trim().toLowerCase();
+
     if (!prenom || !nom || !email) {
         alert("Veuillez remplir tous les champs.");
         return;
     }
 
-    // Validation stricte du format email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
         alert("Veuillez saisir une adresse e-mail valide.");
@@ -72,8 +78,7 @@ async function envoyerDemandeAcces() {
     }
 
     try {
-        // On force explicitement 'valide: false' pour empêcher toute tentative de contournement
-        const { error } = await supabaseClientAuth
+        const { error } = await window.supabaseClientAuth
             .from('utilisateurs_K1')
             .insert([{ 
                 prenom: prenom, 
@@ -83,17 +88,14 @@ async function envoyerDemandeAcces() {
             }]);
 
         if (error) {
-            // Gestion propre de l'erreur (ex: doublon d'email)
             if (error.code === '23505') {
                 alert("Cet e-mail a déjà fait l'objet d'une demande d'accès.");
             } else {
                 alert("Erreur lors de l'enregistrement : " + error.message);
             }
         } else {
-            // Sauvegarde locale de l'email
             localStorage.setItem('user_email_app', email);
             
-            // Bascule sur l'écran d'attente
             const overlay = document.getElementById('auth-overlay');
             const formDemande = document.getElementById('form-demande');
             const attenteValidation = document.getElementById('attente-validation');
