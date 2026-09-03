@@ -32,7 +32,7 @@
 </head>
 <body>    
 <div id="loaderGlobal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 99999; transition: opacity 0.4s ease;">
-    <h2 style="font-family: sans-serif; color: #0056b3; font-size: 18px; margin-bottom: 15px;">Chargement des données...PNG</h2>
+    <h2 style="font-family: sans-serif; color: #0056b3; font-size: 18px; margin-bottom: 15px;">Chargement des données...</h2>
     <!-- Barre de progression style ascenseur -->
     <div style="width: 220px; height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; border: 1px solid #ced4da;">
         <div id="barreProgression" style="width: 30%; height: 100%; background: #0056b3; transition: width 0.3s ease;"></div>
@@ -103,9 +103,9 @@
         </div>
 
         <!-- BOUTONS ACTIONS GLOBALES -->
-        <div style="margin-top: 15px; display: flex; gap: 10px;">
+        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
             <button type="button" onclick="partagerStock()" style="background: #17a2b8; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; flex: 1;">📤 Partager le Stock</button>
-            <button type="button" onclick="imprimerFichePelican()" style="background: #dc3545; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; width: 100%; margin-top: 15px; font-weight: bold;">🖨️ Imprimer / PDF Éclaté & Miniatures</button>
+            <button type="button" onclick="imprimerFichePelican()" style="background: #dc3545; color: white; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; width: 100%; margin-top: 5px; font-weight: bold;">🖨️ Imprimer / PDF Éclaté & Miniatures</button>
             <button type="button" id="btnInstaller" style="background: #ffc107; color: #212529; border: none; padding: 10px; border-radius: 4px; font-size: 13px; cursor: pointer; display: none; font-weight: bold; flex: 1;">📱 Installer l'app</button>
         </div>
 
@@ -192,7 +192,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="pelican.js"></script>
 
-    <!-- SCRIPT DE BASCULE DES ONGLETS -->
+    <!-- SCRIPT DE BASCULE DES ONGLETS & GESTION SY -->
     <script>
         function changerOnglet(nomOnglet) {
             let ongletPelican = document.getElementById('ongletPelican');
@@ -221,38 +221,194 @@
                 bandeau.textContent = 'Mode SY (JSON) Actif';
             }
         }
+
         async function partagerStock() {
-    let stockData = localStorage.getItem('stock_local_sauvegarde') || '[]';
-    let blob = new Blob([stockData], { type: 'application/json' });
-    let file = new File([blob], 'stock_terrain.json', { type: 'application/json' });
+            let stockData = localStorage.getItem('stock_local_sauvegarde') || '[]';
+            let blob = new Blob([stockData], { type: 'application/json' });
+            let file = new File([blob], 'stock_terrain.json', { type: 'application/json' });
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        try {
-            await navigator.share({
-                title: 'Gestion Stock Terrain',
-                text: 'Voici le fichier de sauvegarde du stock terrain.',
-                files: [file]
-            });
-            return;
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.warn("Erreur de partage, bascule vers le téléchargement :", error);
-            } else {
-                return; // L'utilisateur a annulé le partage
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'Gestion Stock Terrain',
+                        text: 'Voici le fichier de sauvegarde du stock terrain.',
+                        files: [file]
+                    });
+                    return;
+                } catch (error) {
+                    if (error.name !== 'AbortError') {
+                        console.warn("Erreur de partage, bascule vers le téléchargement :", error);
+                    } else {
+                        return;
+                    }
+                }
             }
-        }
-    }
 
-    // Solution de secours si le partage natif n'est pas disponible
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement('a');
-    a.href = url;
-    a.download = 'stock_terrain.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = 'stock_terrain.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- GESTION DE LA RECHERCHE SY (JSON) ---
+        let articleJsonCourant = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            let inputSymbole = document.getElementById('inputSymboleJson');
+            if (inputSymbole) {
+                inputSymbole.addEventListener('input', () => {
+                    afficherSuggestionsJson();
+                });
+            }
+        });
+
+        function afficherSuggestionsJson() {
+            let container = document.getElementById('suggestionsJson');
+            if (!container) return;
+            container.innerHTML = '';
+            let val = document.getElementById('inputSymboleJson').value.toLowerCase().trim();
+            if (!val) return;
+
+            let matches = cataloguePlanGlobal.filter(item => {
+                let sy = String(item.symbole || "").toLowerCase().trim();
+                let des = String(item.designation || "").toLowerCase().trim();
+                let p = String(item.plan || "").toLowerCase().trim();
+                return sy.includes(val) || des.includes(val) || p.includes(val);
+            });
+
+            let uniques = [...new Map(matches.map(item => [item.symbole || item.plan, item])).values()].slice(0, 10);
+            if (uniques.length === 0) {
+                container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun symbole SY trouvé</div>';
+                return;
+            }
+
+            let wrapper = document.createElement('div');
+            wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+
+            uniques.forEach(article => {
+                let div = document.createElement('div');
+                div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;";
+                div.innerHTML = `<strong>SY : ${article.symbole || 'N/A'}</strong> | Plan : ${article.plan}<br><small style="color: #555;">${article.designation || article.intitule || ''}</small>`;
+                div.addEventListener('click', () => {
+                    document.getElementById('inputSymboleJson').value = article.symbole || article.plan;
+                    container.innerHTML = '';
+                    afficherFicheJson(article);
+                });
+                wrapper.appendChild(div);
+            });
+            container.appendChild(wrapper);
+        }
+
+        function afficherFicheJson(article) {
+            articleJsonCourant = article;
+            document.getElementById('resPlanJson').textContent = "Plan: " + (article.plan || '-');
+            document.getElementById('resRepJson').textContent = "SY: " + (article.symbole || '-');
+            document.getElementById('resIntituleJson').textContent = article.designation || article.intitule || '-';
+
+            let img = document.getElementById('imgPieceJson');
+            let imgId = `img_json_${Math.random().toString(36).substr(2, 5)}`;
+            img.id = imgId;
+            let defaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+            img.src = defaut;
+
+            if (window.supabaseClient && article.symbole) {
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${article.symbole}.jpg`, 60)
+                    .then(({ data }) => {
+                        let el = document.getElementById(imgId);
+                        if (el && data) el.src = data.signedUrl;
+                    });
+            }
+
+            let existants = stockGlobal.filter(s => 
+                String(s.plan || "").trim() === String(article.plan || "").trim() &&
+                String(s.symbole || "").trim().toLowerCase() === String(article.symbole || "").trim().toLowerCase()
+            );
+
+            let divStock = document.getElementById('infoStockActuelJson');
+            divStock.style.display = 'block';
+            let html = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock SY :</strong>
+                        <button type="button" onclick="ouvrirModalStockJson(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
+                      </div>`;
+
+            if (existants.length > 0) {
+                existants.forEach(ex => {
+                    let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+                    html += `<div onclick="ouvrirModalStockJson(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                        <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+                    </div>`;
+                });
+            } else {
+                html += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole.</div>`;
+            }
+            html += `</div>`;
+            divStock.innerHTML = html;
+            document.getElementById('resultatJson').style.display = 'block';
+        }
+
+        function ouvrirModalStockJson(existant) {
+            if (!articleJsonCourant) return;
+            document.getElementById('modalTitreJson').textContent = existant ? "Modifier stock SY" : "Ajouter stock SY";
+            document.getElementById('modalSousTitreJson').textContent = `SY : ${articleJsonCourant.symbole} | Plan : ${articleJsonCourant.plan}`;
+            
+            document.getElementById('stockSiteJson').value = existant ? existant.site : '';
+            document.getElementById('stockBatimentJson').value = existant ? existant.batiment : '';
+            document.getElementById('stockRangJson').value = existant ? existant.rang : '';
+            document.getElementById('stockQuantiteJson').value = existant ? existant.quantite : '1';
+
+            document.getElementById('modalOverlayJson').style.display = 'flex';
+        }
+
+        function fermerModalJson() {
+            document.getElementById('modalOverlayJson').style.display = 'none';
+        }
+
+        function validerMouvementStockJson() {
+            if (!articleJsonCourant) return;
+            let site = document.getElementById('stockSiteJson').value.trim();
+            let batiment = document.getElementById('stockBatimentJson').value.trim();
+            let rang = document.getElementById('stockRangJson').value.trim();
+            let qte = parseInt(document.getElementById('stockQuantiteJson').value) || 0;
+
+            if (!site || !batiment || !rang || qte <= 0) {
+                alert("Veuillez remplir tous les champs correctement.");
+                return;
+            }
+
+            let index = stockGlobal.findIndex(item =>
+                String(item.plan || "").trim() === String(articleJsonCourant.plan || "").trim() &&
+                String(item.symbole || "").trim().toLowerCase() === String(articleJsonCourant.symbole || "").trim().toLowerCase() &&
+                String(item.site || "").toLowerCase() === site.toLowerCase() &&
+                String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
+                String(item.rang || "").toLowerCase() === rang.toLowerCase()
+            );
+
+            if (index !== -1) {
+                stockGlobal[index].quantite = qte;
+            } else {
+                stockGlobal.push({
+                    plan: articleJsonCourant.plan,
+                    rep: "000000",
+                    symbole: articleJsonCourant.symbole,
+                    intitule: articleJsonCourant.designation || articleJsonCourant.intitule || "",
+                    site: site,
+                    batiment: batiment,
+                    rang: rang,
+                    quantite: qte
+                });
+            }
+
+            localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
+            fermerModalJson();
+            afficherFicheJson(articleJsonCourant);
+            alert("✅ Stock SY mis à jour avec succès !");
+        }
     </script>
 </body>
 </html>
