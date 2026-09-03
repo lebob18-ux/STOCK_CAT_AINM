@@ -76,7 +76,16 @@ function reinitialiserFicheEtSaisies() {
  * 3. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Local)
  * ==============================================================================
  */
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
+    // Vérification de la session Supabase active et blocage/redirection si non connecté
+    if (window.supabaseClient) {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session) {
+            window.location.href = "login.html"; 
+            return;
+        }
+    }
+
     const fallbackLoader = setTimeout(masquerLoader, 3000);
 
     console.log(`%c[PELICAN MODE] : ${PELICAN_VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
@@ -196,7 +205,7 @@ function afficherFichePelican(article) {
     if (window.supabaseClient) {
         window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
             .then(({ data, error }) => {
-                let elImg = document.getElementById('imgPiece'); // Correction ici (remplacement de imgMainId par imgPiece)
+                let elImg = document.getElementById('imgPiece');
                 if (elImg && data && !error) {
                     elImg.src = data.signedUrl;
                 }
