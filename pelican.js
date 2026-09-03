@@ -181,12 +181,9 @@ function afficherFichePelican(article) {
 
 let plan6 = String(article.plan).trim().padStart(6, '0');
     let cheminImage = `${plan6}.jpg`;
-    let imgMainId = `img_main_${Math.random().toString(36).substr(2, 5)}`;
     
+    // On garde toujours l'ID 'imgPiece' fixe pour que le HTML et le JS se retrouvent
     let img = document.getElementById('imgPiece');
-    if (img) {
-        img.id = imgMainId;
-    }
 
     let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
     
