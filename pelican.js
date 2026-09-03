@@ -8,7 +8,7 @@ const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Utilisation du client Supabase unique déjà initialisé par auth.js ou globalement
+// Initialisation propre de Supabase directement dans le fichier
 if (typeof window.supabaseClient === 'undefined') {
     window.supabaseClient = window.supabaseClientAuth || null;
     
@@ -76,16 +76,7 @@ function reinitialiserFicheEtSaisies() {
  * 3. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Local)
  * ==============================================================================
  */
-window.addEventListener('DOMContentLoaded', async () => {
-    // Vérification de la session Supabase active et blocage/redirection si non connecté
-    if (window.supabaseClient) {
-        const { data: { session } } = await window.supabaseClient.auth.getSession();
-        if (!session) {
-            window.location.href = "login.html"; 
-            return;
-        }
-    }
-
+window.addEventListener('DOMContentLoaded', () => {
     const fallbackLoader = setTimeout(masquerLoader, 3000);
 
     console.log(`%c[PELICAN MODE] : ${PELICAN_VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
