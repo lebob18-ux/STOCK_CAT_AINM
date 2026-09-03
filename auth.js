@@ -1,4 +1,10 @@
-// Vérification automatique au chargement de la page
+// --- 1. CONFIGURATION SUPABASE ---
+const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
+// Initialisation de l'objet supabase accessible partout
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- 2. VÉRIFICATION AUTOMATIQUE AU CHARGEMENT ---
 document.addEventListener("DOMContentLoaded", async () => {
     await verifierAcces();
 });
@@ -6,15 +12,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 async function verifierAcces() {
     const savedEmail = localStorage.getItem('user_email_app');
 
+    const overlay = document.getElementById('auth-overlay');
+    const formDemande = document.getElementById('form-demande');
+    const attenteValidation = document.getElementById('attente-validation');
+
     if (!savedEmail) {
-        // Premier passage : on affiche le formulaire de saisie dans l'overlay
-        const overlay = document.getElementById('auth-overlay');
         if (overlay) overlay.style.display = 'flex';
-        
-        const formDemande = document.getElementById('form-demande');
         if (formDemande) formDemande.style.display = 'block';
-        
-        const attenteValidation = document.getElementById('attente-validation');
         if (attenteValidation) attenteValidation.style.display = 'none';
         return;
     }
@@ -27,31 +31,23 @@ async function verifierAcces() {
         .single();
 
     if (error || !data) {
-        // L'e-mail n'est plus dans la base ou erreur
         localStorage.removeItem('user_email_app');
-        const overlay = document.getElementById('auth-overlay');
         if (overlay) overlay.style.display = 'flex';
+        if (formDemande) formDemande.style.display = 'block';
+        if (attenteValidation) attenteValidation.style.display = 'none';
         return;
     }
 
     if (data.valide === true) {
-        // ACCÈS AUTORISÉ : On masque l'overlay, l'app est accessible
-        const overlay = document.getElementById('auth-overlay');
         if (overlay) overlay.style.display = 'none';
     } else {
-        // ACCÈS EN ATTENTE : On bloque avec le message d'attente
-        const overlay = document.getElementById('auth-overlay');
         if (overlay) overlay.style.display = 'flex';
-        
-        const formDemande = document.getElementById('form-demande');
         if (formDemande) formDemande.style.display = 'none';
-        
-        const attenteValidation = document.getElementById('attente-validation');
         if (attenteValidation) attenteValidation.style.display = 'block';
     }
 }
 
-// Fonction appelée quand l'agent clique sur "Demander l'accès"
+// --- 3. ENREGISTREMENT DE LA DEMANDE D'ACCÈS ---
 async function envoyerDemandeAcces() {
     const prenom = document.getElementById('req-prenom').value.trim();
     const nom = document.getElementById('req-nom').value.trim();
@@ -62,7 +58,6 @@ async function envoyerDemandeAcces() {
         return;
     }
 
-    // Enregistrement de la demande dans utilisateurs_K1 avec valide = false par défaut
     const { error } = await supabase
         .from('utilisateurs_K1')
         .insert([{ prenom: prenom, nom: nom, email: email, valide: false }]);
@@ -70,10 +65,8 @@ async function envoyerDemandeAcces() {
     if (error) {
         alert("Erreur lors de l'enregistrement (peut-être que cet email existe déjà) : " + error.message);
     } else {
-        // On sauvegarde l'email en local pour le mémoriser sur cet appareil
         localStorage.setItem('user_email_app', email);
         
-        // On bascule sur l'affichage "en attente"
         document.getElementById('form-demande').style.display = 'none';
         document.getElementById('attente-validation').style.display = 'block';
     }
