@@ -1,8 +1,12 @@
-// --- 1. CONFIGURATION SUPABASE ---
+// --- 1. CONFIGURATION SUPABASE (SÉCURISÉE CONTRE LES DOUBLONS) ---
+if (typeof SUPABASE_URL === 'undefined') {
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
-// Initialisation de l'objet supabase accessible partout
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
+if (typeof supabase === 'undefined' && window.supabase) {
+    var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
 
 // --- 2. VÉRIFICATION AUTOMATIQUE AU CHARGEMENT ---
 document.addEventListener("DOMContentLoaded", async () => {
@@ -23,7 +27,6 @@ async function verifierAcces() {
         return;
     }
 
-    // On interroge Supabase dans la table utilisateurs_K1
     const { data, error } = await supabase
         .from('utilisateurs_K1')
         .select('*')
