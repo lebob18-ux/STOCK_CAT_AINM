@@ -1,8 +1,8 @@
 if (typeof VERSION_APP_JSON === 'undefined') {
-    var VERSION_APP_JSON = "JSON-ONGLET-V1";
+    var VERSION_APP_JSON = "JSON-ONGLET-V1-SUPABASE";
 }
-// GITHUB_BASE_URL et GITHUB_IMG_URL sont déjà déclarés en const dans pelican.js
-// on ne les redéclare pas ici pour éviter le SyntaxError
+// GITHUB_BASE_URL est déclaré dans pelican.js (pour mapping.json et stock.csv)
+// Les images proviennent désormais du bucket privé Supabase via URLs signées
 
 if (typeof catalogueSymboleGlobal === 'undefined') { var catalogueSymboleGlobal = []; }
 if (typeof stockGlobalJson === 'undefined') { var stockGlobalJson = []; }
@@ -12,6 +12,7 @@ if (typeof dernierSiteSaisiJson === 'undefined') { var dernierSiteSaisiJson = ''
 if (typeof dernierBatimentSaisiJson === 'undefined') { var dernierBatimentSaisiJson = ''; }
 
 const GITHUB_STOCK_CSV_URL = GITHUB_BASE_URL + 'stock.csv';
+const SUPABASE_BUCKET_MINIATURES = 'miniatures-privees'; // Nom de votre bucket privé Supabase
 
 window.addEventListener('DOMContentLoaded', () => {
     console.log(`%c[JSON MODE] : ${VERSION_APP_JSON}`, "background: #28a745; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
@@ -27,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // 1. Chargement du stock distant depuis GitHub (CSV) ou repli sur le localStorage
     chargerStockDepuisCsvDistant();
 
-    // 2. Chargement du catalogue de référence (mapping.json)
+    // 2. Chargement du catalogue de référence (mapping.json) depuis GitHub
     fetch(GITHUB_BASE_URL + 'mapping.json')
         .then(res => {
             if (!res.ok) throw new Error("Erreur réseau");
@@ -37,7 +38,6 @@ window.addEventListener('DOMContentLoaded', () => {
             catalogueSymboleGlobal = data || [];
             if (barre) barre.style.width = '100%';
             console.log("mapping.json chargé :", catalogueSymboleGlobal.length, "entrées.");
-            
             masquerLoaderGlobal();
         })
         .catch(err => {
@@ -49,7 +49,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let inputSymbole = document.getElementById('inputSymboleJson');
     if (inputSymbole) {
-        inputSymbole.addEventListener('input', (e) => {
+        inputSymbole.addEventListener('input', async (e) => {
             reinitialiserFicheJson();
             let val = e.target.value.toLowerCase().trim();
             let container = document.getElementById('suggestionsJson');
@@ -70,14 +70,36 @@ window.addEventListener('DOMContentLoaded', () => {
             let wrapper = document.createElement('div');
             wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
 
+            // Récupération groupée des URL signées Supabase pour les suggestions
+            let signedUrlsMap = {};
+            if (window.supabase) {
+                try {
+                    let paths = matches.map(item => `${item.symbole}.jpg`);
+                    let { data } = await window.supabase.storage
+                        .from(SUPABASE_BUCKET_MINIATURES)
+                        .createSignedUrls(paths, 300);
+                    
+                    if (data) {
+                        data.forEach(itemRes => {
+                            if (itemRes.path && itemRes.signedUrl) {
+                                signedUrlsMap[itemRes.path] = itemRes.signedUrl;
+                            }
+                        });
+                    }
+                } catch (err) {
+                    console.warn("⚠️ Erreur lors de la récupération des URLs signées pour les suggestions", err);
+                }
+            }
+
             matches.forEach(item => {
                 let div = document.createElement('div');
                 div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 12px; background: white;";
 
-                let imgUrl = `${GITHUB_IMG_URL}${item.symbole}.jpg`;
+                let imgUrl = signedUrlsMap[`${item.symbole}.jpg`] || '';
+                
                 div.innerHTML = `
                     <img src="${imgUrl}" style="width: 60px; height: 45px; object-fit: contain; border: 1px solid #ddd; background: #fff; flex-shrink: 0;"
-                         onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
+                        onerror="this.onerror=null;this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo%3C/text%3E%3C/svg%3E'">
                     <div style="flex-grow: 1;">
                         <strong style="font-size: 14px; color: #0056b3;">SY : ${item.symbole}</strong> | Plan : ${item.plan || '-'}<br>
                         <span style="font-size: 12px; color: #222; font-weight: 600;">${item.intitule || 'Sans désignation'}</span>
@@ -163,7 +185,7 @@ function reinitialiserFicheJson() {
     if (divStock) divStock.innerHTML = '';
 }
 
-function afficherFicheSymboleJson(symItem) {
+async function afficherFicheSymboleJson(symItem) {
     articleCourantJson = symItem;
 
     let numPlan     = symItem.plan        || "-";
@@ -176,11 +198,22 @@ function afficherFicheSymboleJson(symItem) {
 
     let img = document.getElementById('imgPieceJson');
     if (img) {
-        img.src = `${GITHUB_IMG_URL}${numSy}.jpg`;
-        img.onerror = () => {
-            img.onerror = null;
-            img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EMiniature introuvable%3C/text%3E%3C/svg%3E';
-        };
+        img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EChargement...%3C/text%3E%3C/svg%3E';
+        
+        // Requête Supabase pour obtenir l'URL signée de la fiche détaillée
+        if (window.supabase) {
+            try {
+                let { data, error } = await window.supabase.storage
+                    .from(SUPABASE_BUCKET_MINIATURES)
+                    .createSignedUrl(`${numSy}.jpg`, 300); // Valide 5 minutes
+
+                if (error || !data) throw error;
+                img.src = data.signedUrl;
+            } catch (err) {
+                console.warn(`⚠️ Impossible de charger la miniature pour ${numSy}`);
+                img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EMiniature introuvable%3C/text%3E%3C/svg%3E';
+            }
+        }
     }
 
     let existantsSym = stockGlobalJson.filter(item =>
@@ -259,7 +292,7 @@ function validerMouvementStockJson() {
     let rang     = document.getElementById('stockRangJson').value.trim();
     let typeMvt  = document.getElementById('mouvementTypeJson').value;
 
-    if (qte <= 0)                                 { alert("Quantité invalide");                            return; }
+    if (qte <= 0)                                       { alert("Quantité invalide");                               return; }
     if (!site || !batiment || !rang)   { alert("Remplissez tous les champs d'emplacement.");   return; }
 
     dernierSiteSaisiJson     = site;
@@ -279,7 +312,7 @@ function validerMouvementStockJson() {
         } else {
             stockGlobalJson.push({
                 plan:      articleCourantJson.plan         || "SYMB",
-                rep:           "",
+                rep:            "",
                 symbole:   articleCourantJson.symbole,
                 intitule: articleCourantJson.intitule || "",
                 site, batiment, rang,
