@@ -1,6 +1,9 @@
 const VERSION_APP = "PELICAN-ONGLET-V1";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let cataloguePlanGlobal = [];
 let stockGlobal = [];
