@@ -1,9 +1,14 @@
-const VERSION_APP = "PELICAN-ONGLET-V1";
+/**
+ * ==============================================================================
+ * 1. CONFIGURATION & INITIALISATION GLOBALE
+ * ==============================================================================
+ */
+const PELICAN_VERSION_APP = "PELICAN-UNIFIED-V1";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Initialisation sécurisée de Supabase sur window
+// Initialisation sécurisée de Supabase sur window (sans doublon)
 if (typeof window.supabaseClient === 'undefined') {
     window.supabaseClient = null;
     if (window.supabase && typeof window.supabase.createClient === 'function') {
@@ -20,6 +25,12 @@ let contexteMouvement = null;
 let dernierSiteSaisi = '';
 let dernierBatimentSaisi = '';
 
+
+/**
+ * ==============================================================================
+ * 2. FONCTIONS UTILITAIRES & INTERFACE (Loader / Reset)
+ * ==============================================================================
+ */
 function masquerLoader() {
     let loader = document.getElementById('loaderGlobal');
     if (loader) {
@@ -56,10 +67,16 @@ function reinitialiserFicheEtSaisies() {
     if (conteneurComposants) conteneurComposants.innerHTML = '';
 }
 
+
+/**
+ * ==============================================================================
+ * 3. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Local)
+ * ==============================================================================
+ */
 window.addEventListener('DOMContentLoaded', () => {
     const fallbackLoader = setTimeout(masquerLoader, 3000);
 
-    console.log(`%c[PELICAN MODE] : ${VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
+    console.log(`%c[PELICAN MODE] : ${PELICAN_VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
 
     ['inputPlan', 'stockSite', 'stockBatiment', 'stockRang', 'stockQuantite'].forEach(id => {
         let el = document.getElementById(id);
@@ -112,6 +129,12 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+
+/**
+ * ==============================================================================
+ * 4. MOTEUR DE RECHERCHE & AFFICHAGE DE LA FICHE ARTICLE
+ * ==============================================================================
+ */
 function afficherSuggestionsPelican() {
     let container = document.getElementById('listePlanResultats');
     if (!container) return;
@@ -282,6 +305,12 @@ function afficherFichePelican(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
+
+/**
+ * ==============================================================================
+ * 5. GESTION DES MODALES DE MOUVEMENT DE STOCK
+ * ==============================================================================
+ */
 function ouvrirModalPlanRep(existant) {
     contexteMouvement = { type: 'PLAN_REP', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Ensemble" : "Ajouter stock Ensemble";
@@ -376,7 +405,12 @@ function validerMouvementStock() {
     alert("✅ Mouvement Pelican enregistré avec succès !");
 }
 
+
+/**
+ * ==============================================================================
+ * 6. ACTIONS DIVERSES (Impression, etc.)
+ * ==============================================================================
+ */
 function imprimerFichePelican() {
     window.print();
 }
-//21h03
