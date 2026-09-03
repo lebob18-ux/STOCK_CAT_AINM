@@ -8,10 +8,13 @@ const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Utilisation du client Supabase unique déjà initialisé par auth.js
+// Utilisation du client Supabase unique déjà initialisé par auth.js ou globalement
 if (typeof window.supabaseClient === 'undefined') {
-    // Si auth.js a déjà créé le client global, on le récupère, sinon on met null
     window.supabaseClient = window.supabaseClientAuth || null;
+    
+    if (!window.supabaseClient && typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
     
     if (!window.supabaseClient) {
         console.warn("⚠️ Le client Supabase n'est pas encore disponible.");
@@ -179,32 +182,27 @@ function afficherFichePelican(article) {
     document.getElementById('resRep').textContent = article.rep === "000000" ? "Sans repère" : (article.rep || '-');
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
-let plan6 = String(article.plan).trim().padStart(6, '0');
+    let plan6 = String(article.plan).trim().padStart(6, '0');
     let cheminImage = `${plan6}.jpg`;
     
-    // On garde toujours l'ID 'imgPiece' fixe pour que le HTML et le JS se retrouvent
     let img = document.getElementById('imgPiece');
-
     let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
     
     if (img) {
         img.src = imageParDefaut;
+        img.onerror = () => { img.src = imageParDefaut; };
     }
 
     if (window.supabaseClient) {
         window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
             .then(({ data, error }) => {
-                let elImg = document.getElementById(imgMainId);
+                let elImg = document.getElementById('imgPiece'); // Correction ici (remplacement de imgMainId par imgPiece)
                 if (elImg && data && !error) {
                     elImg.src = data.signedUrl;
                 }
             })
             .catch(() => {});
     }
-
-    if (img) {
-    img.onerror = () => { img.src = imageParDefaut; };
-}
 
     let existantsPlanRep = stockGlobal.filter(item => 
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
@@ -392,7 +390,7 @@ function validerMouvementStock() {
             String(item.plan || "").trim() === String(comp.plan || "").trim() &&
             String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
             String(item.site || "").toLowerCase() === String(stItem.site || "").toLowerCase() &&
-            String(item.batiment || "").toLowerCase() === String(stItem.batino || stItem.batiment || "").toLowerCase() &&
+            String(item.batiment || "").toLowerCase() === String(stItem.batiment || "").toLowerCase() &&
             String(item.rang || "").toLowerCase() === String(stItem.rang || "").toLowerCase()
         );
 
