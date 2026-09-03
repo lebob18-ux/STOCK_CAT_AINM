@@ -4,7 +4,7 @@ const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Initialisation sécurisée de Supabase pour éviter les plantages si le SDK est absent
+// Initialisation sécurisée de Supabase
 let supabase = null;
 if (window.supabase && typeof window.supabase.createClient === 'function') {
     supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -25,6 +25,13 @@ function masquerLoader() {
         loader.style.opacity = '0';
         loader.style.transition = 'opacity 0.3s ease';
         setTimeout(() => loader.remove(), 300);
+    }
+}
+
+function mettreAJourProgression(pourcentage) {
+    let barre = document.getElementById('barreProgression');
+    if (barre) {
+        barre.style.width = pourcentage + '%';
     }
 }
 
@@ -49,8 +56,8 @@ function reinitialiserFicheEtSaisies() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-    // Sécurité : forcer la suppression du loader après 2.5 secondes maximum quoi qu'il arrive
-    const fallbackLoader = setTimeout(masquerLoader, 2500);
+    // Sécurité : masquer le loader après 3 secondes maximum quoiqu'il arrive
+    const fallbackLoader = setTimeout(masquerLoader, 3000);
 
     console.log(`%c[PELICAN MODE] : ${VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
 
@@ -61,6 +68,8 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    mettreAJourProgression(40);
+
     Promise.all([
         fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
             .then(res => {
@@ -68,6 +77,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 return res.arrayBuffer();
             })
             .then(buffer => {
+                mettreAJourProgression(80);
                 let workbook = XLSX.read(buffer, { type: 'array' });
                 let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
                 return donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "").map(row => ({
@@ -90,9 +100,10 @@ window.addEventListener('DOMContentLoaded', () => {
         if (stockSauvegarde) {
             try { stockGlobal = JSON.parse(stockSauvegarde); } catch(e) { stockGlobal = []; }
         }
+        mettreAJourProgression(100);
     }).finally(() => {
         clearTimeout(fallbackLoader);
-        masquerLoader();
+        setTimeout(masquerLoader, 200);
     });
 
     document.getElementById('inputPlan')?.addEventListener('input', () => { 
@@ -102,7 +113,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function afficherSuggestionsPelican() {
-    let container = document.getElementById('listePlanResultats') || document.getElementById('suggestions');
+    let container = document.getElementById('listePlanResultats');
     if (!container) return;
     container.innerHTML = '';
     let recherchePlan = document.getElementById('inputPlan').value.toLowerCase().trim();
