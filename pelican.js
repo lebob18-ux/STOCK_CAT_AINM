@@ -8,13 +8,13 @@ const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_
 const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
 
-// Initialisation sécurisée de Supabase sur window (sans doublon)
+// Utilisation du client Supabase unique déjà initialisé par auth.js
 if (typeof window.supabaseClient === 'undefined') {
-    window.supabaseClient = null;
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    } else {
-        console.warn("⚠️ Le client Supabase n'a pas pu être initialisé.");
+    // Si auth.js a déjà créé le client global, on le récupère, sinon on met null
+    window.supabaseClient = window.supabaseClientAuth || null;
+    
+    if (!window.supabaseClient) {
+        console.warn("⚠️ Le client Supabase n'est pas encore disponible.");
     }
 }
 
