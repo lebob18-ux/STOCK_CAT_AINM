@@ -1,18 +1,19 @@
 const CACHE_NAME = 'pelican-cache-v1';
 const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/pelican.js',
-  '/json_mode.js',
-  '/mapping.json',
-  '/stock.csv'
+  './',
+  './index.html',
+  './pelican.js',
+  './json_mode.js'
 ];
 
-// Installation du Service Worker et mise en cache des fichiers statiques de base
+// Installation du Service Worker et mise en cache tolérante aux erreurs
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      // Utilisation de add par add pour éviter qu'un fichier manquant (ex: stock.csv) bloque tout le SW
+      return Promise.allSettled(
+        ASSETS_TO_CACHE.map(asset => cache.add(asset).catch(err => console.warn(`⚠️ Échec mise en cache pour : ${asset}`, err)))
+      );
     }).then(() => self.skipWaiting())
   );
 });
@@ -42,8 +43,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pour les fichiers de données (mapping.json, stock.csv), privilégier le réseau (Network First)
-  if (url.pathname.endsWith('mapping.json') || url.pathname.endsWith('stock.csv')) {
+  // Pour les fichiers de données (mapping.json, stock.csv, excel), privilégier le réseau (Network First)
+  if (url.pathname.endsWith('mapping.json') || url.pathname.endsWith('stock.csv') || url.pathname.endsWith('.xlsx')) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -74,7 +75,6 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // En cas d'échec réseau total, on retourne le cache s'il existe
         return cachedResponse;
       });
 
@@ -82,3 +82,4 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+// maj 19h02
