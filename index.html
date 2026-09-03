@@ -266,91 +266,117 @@
             }
         });
 
-        function afficherSuggestionsJson() {
-            let container = document.getElementById('suggestionsJson');
-            if (!container) return;
+function afficherSuggestionsJson() {
+    let container = document.getElementById('suggestionsJson');
+    if (!container) return;
+    container.innerHTML = '';
+    let val = document.getElementById('inputSymboleJson').value.toLowerCase().trim();
+    if (!val) return;
+
+    let matches = cataloguePlanGlobal.filter(item => {
+        let sy = String(item.symbole || "").toLowerCase().trim();
+        let des = String(item.designation || "").toLowerCase().trim();
+        let p = String(item.plan || "").toLowerCase().trim();
+        return sy.includes(val) || des.includes(val) || p.includes(val);
+    });
+
+    let uniques = [...new Map(matches.map(item => [item.symbole || item.plan, item])).values()].slice(0, 10);
+    if (uniques.length === 0) {
+        container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun symbole SY trouvé</div>';
+        return;
+    }
+
+    let wrapper = document.createElement('div');
+    wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+
+    uniques.forEach(article => {
+        let div = document.createElement('div');
+        div.style.cssText = "padding: 8px 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 10px;";
+        
+        let thumbId = 'thumb_sug_' + Math.random().toString(36.substr(2, 5));
+        div.innerHTML = `
+            <div style="width: 40px; height: 40px; background: #f1f3f5; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden;">
+                <span style="font-size: 9px; color: #aaa;" id="${thumbId}_txt">Img</span>
+            </div>
+            <div style="flex: 1; overflow: hidden;">
+                <strong>SY : ${article.symbole || 'N/A'}</strong> | Plan : ${article.plan}<br>
+                <small style="color: #555; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;">${article.designation || article.intitule || ''}</small>
+            </div>`;
+
+        // Charger la miniature pour la suggestion en arrière-plan
+        if (window.supabaseClient && article.symbole) {
+            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${String(article.symbole).trim()}.jpg`, 60)
+                .then(({ data }) => {
+                    let parentBox = div.querySelector('div');
+                    if (data && data.signedUrl && parentBox) {
+                        parentBox.innerHTML = `<img src="${data.signedUrl}" style="width: 100%; height: 100%; object-fit: contain;">`;
+                    }
+                });
+        }
+
+        div.addEventListener('click', () => {
+            document.getElementById('inputSymboleJson').value = article.symbole || article.plan;
             container.innerHTML = '';
-            let val = document.getElementById('inputSymboleJson').value.toLowerCase().trim();
-            if (!val) return;
+            afficherFicheJson(article);
+        });
+        wrapper.appendChild(div);
+    });
+    container.appendChild(wrapper);
+}
 
-            let matches = cataloguePlanGlobal.filter(item => {
-                let sy = String(item.symbole || "").toLowerCase().trim();
-                let des = String(item.designation || "").toLowerCase().trim();
-                let p = String(item.plan || "").toLowerCase().trim();
-                return sy.includes(val) || des.includes(val) || p.includes(val);
+function afficherFicheJson(article) {
+    articleJsonCourant = article;
+    document.getElementById('resPlanJson').textContent = "Plan: " + (article.plan || '-');
+    document.getElementById('resRepJson').textContent = "SY: " + (article.symbole || '-');
+    document.getElementById('resIntituleJson').textContent = article.designation || article.intitule || '-';
+
+    let img = document.getElementById('imgPieceJson');
+    let defaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EChargement miniature...%3C/text%3E%3C/svg%3E';
+    img.src = defaut;
+
+    if (window.supabaseClient && article.symbole) {
+        let symbolePropre = String(article.symbole).trim();
+        window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${symbolePropre}.jpg`, 60)
+            .then(({ data }) => {
+                if (data && data.signedUrl && articleJsonCourant.symbole === article.symbole) {
+                    img.src = data.signedUrl;
+                } else {
+                    img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+                }
+            })
+            .catch(() => {
+                img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
             });
+    }
 
-            let uniques = [...new Map(matches.map(item => [item.symbole || item.plan, item])).values()].slice(0, 10);
-            if (uniques.length === 0) {
-                container.innerHTML = '<div style="padding: 10px; color: #777; font-size: 13px; background: white; border: 1px solid #ddd; border-radius: 4px;">Aucun symbole SY trouvé</div>';
-                return;
-            }
+    let existants = stockGlobal.filter(s => 
+        String(s.plan || "").trim() === String(article.plan || "").trim() &&
+        String(s.symbole || "").trim().toLowerCase() === String(article.symbole || "").trim().toLowerCase()
+    );
 
-            let wrapper = document.createElement('div');
-            wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
+    let divStock = document.getElementById('infoStockActuelJson');
+    divStock.style.display = 'block';
+    let html = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
+    html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock SY :</strong>
+                <button type="button" onclick="ouvrirModalStockJson(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
+              </div>`;
 
-            uniques.forEach(article => {
-                let div = document.createElement('div');
-                div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;";
-                div.innerHTML = `<strong>SY : ${article.symbole || 'N/A'}</strong> | Plan : ${article.plan}<br><small style="color: #555;">${article.designation || article.intitule || ''}</small>`;
-                div.addEventListener('click', () => {
-                    document.getElementById('inputSymboleJson').value = article.symbole || article.plan;
-                    container.innerHTML = '';
-                    afficherFicheJson(article);
-                });
-                wrapper.appendChild(div);
-            });
-            container.appendChild(wrapper);
-        }
-
-        function afficherFicheJson(article) {
-            articleJsonCourant = article;
-            document.getElementById('resPlanJson').textContent = "Plan: " + (article.plan || '-');
-            document.getElementById('resRepJson').textContent = "SY: " + (article.symbole || '-');
-            document.getElementById('resIntituleJson').textContent = article.designation || article.intitule || '-';
-
-            let img = document.getElementById('imgPieceJson');
-            let imgId = `img_json_${Math.random().toString(36).substr(2, 5)}`;
-            img.id = imgId;
-            let defaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
-            img.src = defaut;
-
-            if (window.supabaseClient && article.symbole) {
-                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${article.symbole}.jpg`, 60)
-                    .then(({ data }) => {
-                        let el = document.getElementById(imgId);
-                        if (el && data) el.src = data.signedUrl;
-                    });
-            }
-
-            let existants = stockGlobal.filter(s => 
-                String(s.plan || "").trim() === String(article.plan || "").trim() &&
-                String(s.symbole || "").trim().toLowerCase() === String(article.symbole || "").trim().toLowerCase()
-            );
-
-            let divStock = document.getElementById('infoStockActuelJson');
-            divStock.style.display = 'block';
-            let html = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
-            html += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock SY :</strong>
-                        <button type="button" onclick="ouvrirModalStockJson(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
-                      </div>`;
-
-            if (existants.length > 0) {
-                existants.forEach(ex => {
-                    let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-                    html += `<div onclick="ouvrirModalStockJson(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                        <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
-                        <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
-                    </div>`;
-                });
-            } else {
-                html += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole.</div>`;
-            }
-            html += `</div>`;
-            divStock.innerHTML = html;
-            document.getElementById('resultatJson').style.display = 'block';
-        }
+    if (existants.length > 0) {
+        existants.forEach(ex => {
+            let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+            html += `<div onclick="ouvrirModalStockJson(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
+                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
+            </div>`;
+        });
+    } else {
+        html += `<div style="font-size: 12px; color: #856404; font-style: italic;">Aucun stock enregistré pour ce symbole.</div>`;
+    }
+    html += `</div>`;
+    divStock.innerHTML = html;
+    document.getElementById('resultatJson').style.display = 'block';
+}
 
         function ouvrirModalStockJson(existant) {
             if (!articleJsonCourant) return;
