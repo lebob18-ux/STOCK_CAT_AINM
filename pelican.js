@@ -367,6 +367,7 @@ function afficherFichePelican(article) {
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
                 </div>
+                <button type="button" onclick="ouvrirModalAjoutSy(${cStr})" style="background: #28a745; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 11px; cursor: pointer;">➕ Stock</button>
             </div>`;
 
             if (stockSy.length > 0) {
@@ -374,9 +375,9 @@ function afficherFichePelican(article) {
                 stockSy.forEach(st => {
                     let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
                     let auteurInfoSy = st.user_email ? ` <small style="color: #666; font-size: 10px;">(${st.user_email})</small>` : '';
-                    htmlSy += `<div onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
+                    htmlSy += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
                         <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)${auteurInfoSy}</span>
-                        <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">➖ Sortie</span>
+                        <button type="button" onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-weight: bold; cursor: pointer;">➖ Sortie</button>
                     </div>`;
                 });
                 htmlSy += `</div>`;
@@ -428,6 +429,20 @@ function ouvrirModalPlanRep(existant) {
     document.getElementById('modalOverlay').style.display = 'flex';
 }
 
+function ouvrirModalAjoutSy(composant) {
+    contexteMouvement = { type: 'SY_AJOUT', composant: composant };
+    document.getElementById('modalTitre').textContent = `Ajouter stock Composant SY : ${composant.symbole}`;
+    document.getElementById('modalSousTitre').textContent = `Plan : ${composant.plan} | Intitulé : ${composant.designation || '-'}`;
+    document.getElementById('divTypeMvt').style.display = 'none';
+
+    document.getElementById('stockSite').value = dernierSiteSaisi || '';
+    document.getElementById('stockBatiment').value = dernierBatimentSaisi || '';
+    document.getElementById('stockRang').value = '';
+    document.getElementById('stockQuantite').value = '1';
+
+    document.getElementById('modalOverlay').style.display = 'flex';
+}
+
 function ouvrirModalSortieSy(composant, stockItem) {
     contexteMouvement = { type: 'SY_SORTIE', composant: composant, stockItem: stockItem };
     document.getElementById('modalTitre').textContent = `Sortie Composant SY : ${composant.symbole}`;
@@ -462,9 +477,9 @@ async function validerMouvementStock() {
     dernierSiteSaisi = site;
     dernierBatimentSaisi = batiment;
 
-    // Récupération de l'email de l'utilisateur connecté stocké en local
     let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
 
+    // --- CAS 1 : ENSEMBLE (PLAN / REP) ---
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
@@ -492,14 +507,20 @@ async function validerMouvementStock() {
 
         if (index !== -1) {
             let rowId = stockGlobal[index].id;
-            let { error } = await window.supabaseClient
-                .from('stock_K1')
-                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
-                .eq('id', rowId);
-
-            if (error) { alert("Erreur Supabase : " + error.message); return; }
-            stockGlobal[index].quantite = nouvelleQte;
-            stockGlobal[index].user_email = currentUserEmail;
+            // Si la quantité tombe à 0, on supprime la ligne de Supabase
+            if (nouvelleQte <= 0) {
+                let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
+                if (error) { alert("Erreur Supabase : " + error.message); return; }
+                stockGlobal.splice(index, 1);
+            } else {
+                let { error } = await window.supabaseClient
+                    .from('stock_K1')
+                    .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                    .eq('id', rowId);
+                if (error) { alert("Erreur Supabase : " + error.message); return; }
+                stockGlobal[index].quantite = nouvelleQte;
+                stockGlobal[index].user_email = currentUserEmail;
+            }
         } else {
             let nouvelObjet = { 
                 plan: articleCourant.plan, 
@@ -521,6 +542,51 @@ async function validerMouvementStock() {
             if (data && data.length > 0) stockGlobal.push(data[0]);
         }
 
+    // --- CAS 2 : AJOUT STOCK COMPOSANT SY ---
+    } else if (contexteMouvement.type === 'SY_AJOUT') {
+        let comp = contexteMouvement.composant;
+
+        let index = stockGlobal.findIndex(item =>
+            String(item.plan || "").trim() === String(comp.plan || "").trim() &&
+            String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
+            String(item.site || "").toLowerCase() === site.toLowerCase() &&
+            String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
+            String(item.rang || "").toLowerCase() === rang.toLowerCase()
+        );
+
+        if (index !== -1) {
+            let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            let rowId = stockGlobal[index].id;
+            let { error } = await window.supabaseClient
+                .from('stock_K1')
+                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                .eq('id', rowId);
+
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            stockGlobal[index].quantite = nouvelleQte;
+            stockGlobal[index].user_email = currentUserEmail;
+        } else {
+            let nouvelObjet = {
+                plan: comp.plan,
+                rep: articleCourant.rep,
+                symbole: comp.symbole,
+                intitule: comp.designation || articleCourant.intitule,
+                site,
+                batiment,
+                rang,
+                quantite: qte,
+                user_email: currentUserEmail
+            };
+            let { data, error } = await window.supabaseClient
+                .from('stock_K1')
+                .insert([nouvelObjet])
+                .select();
+
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (data && data.length > 0) stockGlobal.push(data[0]);
+        }
+
+    // --- CAS 3 : SORTIE COMPOSANT SY ---
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -541,23 +607,33 @@ async function validerMouvementStock() {
         let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) - qte;
         let rowId = stockGlobal[index].id;
 
-        let { error } = await window.supabaseClient
-            .from('stock_K1')
-            .update({ quantite: nouvelleQte, user_email: currentUserEmail })
-            .eq('id', rowId);
-
-        if (error) { alert("Erreur Supabase : " + error.message); return; }
-        stockGlobal[index].quantite = nouvelleQte;
-        stockGlobal[index].user_email = currentUserEmail;
+        if (nouvelleQte <= 0) {
+            let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            stockGlobal.splice(index, 1);
+        } else {
+            let { error } = await window.supabaseClient
+                .from('stock_K1')
+                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                .eq('id', rowId);
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            stockGlobal[index].quantite = nouvelleQte;
+            stockGlobal[index].user_email = currentUserEmail;
+        }
     }
 
     fermerModal();
 
-    let inputPlan = document.getElementById('inputPlan');
-    if (inputPlan) inputPlan.value = '';
-    reinitialiserFicheEtSaisies();
+    let planRecherche = articleCourant.plan;
+    let articleRecherche = {...articleCourant};
 
-    alert("✅ Mouvement enregistré, synchronisé et tracé avec votre email !");
+    let inputPlan = document.getElementById('inputPlan');
+    if (inputPlan) inputPlan.value = planRecherche;
+    
+    // Rechargement direct de l'affichage de l'article pour voir la mise à jour à l'écran
+    afficherFichePelican(articleRecherche);
+
+    alert("✅ Mouvement SY enregistré, synchronisé et tracé avec succès !");
 }
 
 
