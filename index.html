@@ -68,7 +68,7 @@
         <div id="ongletPelican" style="display: block;">
             <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
                 <div style="position: relative;">
-                    <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche ENSEMBLE (Plan / Repère) :</label>
+                    <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche BOB (Plan / Repère) :</label>
                     <input type="text" id="inputPlan" inputmode="numeric" placeholder="Ex: 12345..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     <div id="listePlanResultats" style="position: absolute; left: 0; right: 0; z-index: 1000;"></div>
                 </div>
@@ -437,46 +437,66 @@
         /* ---------------------------------------------------- */
         /* Fonction 7 : Validation et sauvegarde du stock SY    */
         /* ---------------------------------------------------- */
-        function validerMouvementStockJson() {
-            if (!articleJsonCourant) return;
-            let site = document.getElementById('stockSiteJson').value.trim();
-            let batiment = document.getElementById('stockBatimentJson').value.trim();
-            let rang = document.getElementById('stockRangJson').value.trim();
-            let qte = parseInt(document.getElementById('stockQuantiteJson').value) || 0;
+async function validerMouvementStockJson() {
+    if (!articleJsonCourant) return;
+    let site = document.getElementById('stockSiteJson').value.trim();
+    let batiment = document.getElementById('stockBatimentJson').value.trim();
+    let rang = document.getElementById('stockRangJson').value.trim();
+    let qte = parseInt(document.getElementById('stockQuantiteJson').value) || 0;
 
-            if (!site || !batiment || !rang || qte <= 0) {
-                alert("Veuillez remplir tous les champs correctement.");
-                return;
-            }
+    if (!site || !batiment || !rang || qte <= 0) {
+        alert("Veuillez remplir tous les champs correctement.");
+        return;
+    }
 
-            let index = stockGlobal.findIndex(item =>
-                String(item.plan || "").trim() === String(articleJsonCourant.plan || "").trim() &&
-                String(item.symbole || "").trim().toLowerCase() === String(articleJsonCourant.symbole || "").trim().toLowerCase() &&
-                String(item.site || "").toLowerCase() === site.toLowerCase() &&
-                String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
-                String(item.rang || "").toLowerCase() === rang.toLowerCase()
-            );
+    if (!window.supabaseClient) {
+        alert("Connexion Supabase non disponible.");
+        return;
+    }
 
-            if (index !== -1) {
-                stockGlobal[index].quantite = qte;
-            } else {
-                stockGlobal.push({
-                    plan: articleJsonCourant.plan,
-                    rep: "000000",
-                    symbole: articleJsonCourant.symbole,
-                    intitule: articleJsonCourant.designation || articleJsonCourant.intitule || "",
-                    site: site,
-                    batiment: batiment,
-                    rang: rang,
-                    quantite: qte
-                });
-            }
+    let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
 
-            localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
-            fermerModalJson();
-            afficherFicheJson(articleJsonCourant);
-            alert("✅ Stock SY mis à jour avec succès !");
-        }
+    let index = stockGlobal.findIndex(item =>
+        String(item.plan || "").trim() === String(articleJsonCourant.plan || "").trim() &&
+        String(item.symbole || "").trim().toLowerCase() === String(articleJsonCourant.symbole || "").trim().toLowerCase() &&
+        String(item.site || "").toLowerCase() === site.toLowerCase() &&
+        String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
+        String(item.rang || "").toLowerCase() === rang.toLowerCase()
+    );
+
+    if (index !== -1) {
+        let rowId = stockGlobal[index].id;
+        let { error } = await window.supabaseClient
+            .from('stock_K1')
+            .update({ quantite: qte, user_email: currentUserEmail })
+            .eq('id', rowId);
+        if (error) { alert("Erreur Supabase : " + error.message); return; }
+        stockGlobal[index].quantite = qte;
+        stockGlobal[index].user_email = currentUserEmail;
+    } else {
+        let nouvelObjet = {
+            plan: articleJsonCourant.plan,
+            rep: "000000",
+            symbole: articleJsonCourant.symbole,
+            intitule: articleJsonCourant.designation || articleJsonCourant.intitule || "",
+            site,
+            batiment,
+            rang,
+            quantite: qte,
+            user_email: currentUserEmail
+        };
+        let { data, error } = await window.supabaseClient
+            .from('stock_K1')
+            .insert([nouvelObjet])
+            .select();
+        if (error) { alert("Erreur Supabase : " + error.message); return; }
+        if (data && data.length > 0) stockGlobal.push(data[0]);
+    }
+
+    fermerModalJson();
+    afficherFicheJson(articleJsonCourant);
+    alert("✅ Stock SY synchronisé dans Supabase !");
+}
     </script>
 </body>
 </html>
