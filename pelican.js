@@ -479,7 +479,7 @@ async function validerMouvementStock() {
 
     let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
 
-    // --- CAS 1 : ENSEMBLE (PLAN / REP) ---
+    // --- 1. ENSEMBLE (PLAN / REP) : ON NE TOUCHE À RIEN, ON LAISSE TEL QUEL ---
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
@@ -507,7 +507,6 @@ async function validerMouvementStock() {
 
         if (index !== -1) {
             let rowId = stockGlobal[index].id;
-            // Si la quantité tombe à 0, on supprime la ligne de Supabase
             if (nouvelleQte <= 0) {
                 let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
                 if (error) { alert("Erreur Supabase : " + error.message); return; }
@@ -542,10 +541,11 @@ async function validerMouvementStock() {
             if (data && data.length > 0) stockGlobal.push(data[0]);
         }
 
-    // --- CAS 2 : AJOUT STOCK COMPOSANT SY ---
+    // --- 2. SY_AJOUT : CORRECTION POUR SAUVEGARDE SUPABASE FORCÉE ---
     } else if (contexteMouvement.type === 'SY_AJOUT') {
         let comp = contexteMouvement.composant;
 
+        // Recherche dans le stock global d'un enregistrement existant pour ce SY et cet emplacement
         let index = stockGlobal.findIndex(item =>
             String(item.plan || "").trim() === String(comp.plan || "").trim() &&
             String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
@@ -555,38 +555,44 @@ async function validerMouvementStock() {
         );
 
         if (index !== -1) {
+            // Mise à jour de la quantité en base Supabase
             let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
             let rowId = stockGlobal[index].id;
+            
             let { error } = await window.supabaseClient
                 .from('stock_K1')
                 .update({ quantite: nouvelleQte, user_email: currentUserEmail })
                 .eq('id', rowId);
 
-            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (error) { alert("Erreur Supabase (Update SY) : " + error.message); return; }
             stockGlobal[index].quantite = nouvelleQte;
             stockGlobal[index].user_email = currentUserEmail;
         } else {
+            // Insertion d'une nouvelle ligne dans Supabase avec le bon repère et le symbole SY
             let nouvelObjet = {
                 plan: comp.plan,
-                rep: articleCourant.rep,
+                rep: articleCourant.rep || "000000",
                 symbole: comp.symbole,
                 intitule: comp.designation || articleCourant.intitule,
-                site,
-                batiment,
-                rang,
+                site: site,
+                batiment: batiment,
+                rang: rang,
                 quantite: qte,
                 user_email: currentUserEmail
             };
+
             let { data, error } = await window.supabaseClient
                 .from('stock_K1')
                 .insert([nouvelObjet])
                 .select();
 
-            if (error) { alert("Erreur Supabase : " + error.message); return; }
-            if (data && data.length > 0) stockGlobal.push(data[0]);
+            if (error) { alert("Erreur Supabase (Insert SY) : " + error.message); return; }
+            if (data && data.length > 0) {
+                stockGlobal.push(data[0]);
+            }
         }
 
-    // --- CAS 3 : SORTIE COMPOSANT SY ---
+    // --- 3. SY_SORTIE : GESTION SUPABASE (SUPPRESSION SI 0 OU UPDATE) ---
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -609,14 +615,14 @@ async function validerMouvementStock() {
 
         if (nouvelleQte <= 0) {
             let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
-            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (error) { alert("Erreur Supabase (Delete SY) : " + error.message); return; }
             stockGlobal.splice(index, 1);
         } else {
             let { error } = await window.supabaseClient
                 .from('stock_K1')
                 .update({ quantite: nouvelleQte, user_email: currentUserEmail })
                 .eq('id', rowId);
-            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (error) { alert("Erreur Supabase (Update Sortie SY) : " + error.message); return; }
             stockGlobal[index].quantite = nouvelleQte;
             stockGlobal[index].user_email = currentUserEmail;
         }
@@ -630,10 +636,10 @@ async function validerMouvementStock() {
     let inputPlan = document.getElementById('inputPlan');
     if (inputPlan) inputPlan.value = planRecherche;
     
-    // Rechargement direct de l'affichage de l'article pour voir la mise à jour à l'écran
+    // Rafraîchissement direct de l'affichage de la fiche
     afficherFichePelican(articleRecherche);
 
-    alert("✅ Mouvement SY enregistré, synchronisé et tracé avec succès !");
+    alert("✅ Mouvement SY enregistré et synchronisé dans Supabase avec succès !");
 }
 
 
