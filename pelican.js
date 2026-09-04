@@ -316,8 +316,9 @@ function afficherFichePelican(article) {
     if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
             let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
+            let auteurInfo = ex.user_email ? `<br><small style="color: #666; font-size: 10px;">👤 Par : ${ex.user_email}</small>` : '';
             htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
+                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b> ${auteurInfo}</div>
                 <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
             </div>`;
         });
@@ -372,8 +373,9 @@ function afficherFichePelican(article) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
                     let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
+                    let auteurInfoSy = st.user_email ? ` <small style="color: #666; font-size: 10px;">(${st.user_email})</small>` : '';
                     htmlSy += `<div onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
+                        <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)${auteurInfoSy}</span>
                         <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">➖ Sortie</span>
                     </div>`;
                 });
@@ -408,7 +410,7 @@ function afficherFichePelican(article) {
 
 /**
  * ==============================================================================
- * 6. GESTION DES MODALES DE MOUVEMENT DE STOCK (SUPABASE)
+ * 6. GESTION DES MODALES DE MOUVEMENT DE STOCK (SUPABASE + USER EMAIL)
  * ==============================================================================
  */
 function ouvrirModalPlanRep(existant) {
@@ -460,6 +462,9 @@ async function validerMouvementStock() {
     dernierSiteSaisi = site;
     dernierBatimentSaisi = batiment;
 
+    // Récupération de l'email de l'utilisateur connecté stocké en local
+    let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
+
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
@@ -489,11 +494,12 @@ async function validerMouvementStock() {
             let rowId = stockGlobal[index].id;
             let { error } = await window.supabaseClient
                 .from('stock_K1')
-                .update({ quantite: nouvelleQte })
+                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
                 .eq('id', rowId);
 
             if (error) { alert("Erreur Supabase : " + error.message); return; }
             stockGlobal[index].quantite = nouvelleQte;
+            stockGlobal[index].user_email = currentUserEmail;
         } else {
             let nouvelObjet = { 
                 plan: articleCourant.plan, 
@@ -503,7 +509,8 @@ async function validerMouvementStock() {
                 site, 
                 batiment, 
                 rang, 
-                quantite: qte 
+                quantite: qte,
+                user_email: currentUserEmail
             };
             let { data, error } = await window.supabaseClient
                 .from('stock_K1')
@@ -536,11 +543,12 @@ async function validerMouvementStock() {
 
         let { error } = await window.supabaseClient
             .from('stock_K1')
-            .update({ quantite: nouvelleQte })
+            .update({ quantite: nouvelleQte, user_email: currentUserEmail })
             .eq('id', rowId);
 
         if (error) { alert("Erreur Supabase : " + error.message); return; }
         stockGlobal[index].quantite = nouvelleQte;
+        stockGlobal[index].user_email = currentUserEmail;
     }
 
     fermerModal();
@@ -549,7 +557,7 @@ async function validerMouvementStock() {
     if (inputPlan) inputPlan.value = '';
     reinitialiserFicheEtSaisies();
 
-    alert("✅ Mouvement Pelican enregistré et synchronisé avec Supabase !");
+    alert("✅ Mouvement enregistré, synchronisé et tracé avec votre email !");
 }
 
 
