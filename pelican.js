@@ -167,7 +167,7 @@ function reinitialiserFicheEtSaisies() {
 
 /**
  * ==============================================================================
- * 4. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Local)
+ * 4. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Supabase)
  * ==============================================================================
  */
 window.addEventListener('DOMContentLoaded', () => {
@@ -210,12 +210,10 @@ window.addEventListener('DOMContentLoaded', () => {
                 console.warn("⚠️ Impossible de charger PELICAN1.xlsx :", err);
                 return [];
             }),
-        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
-    ]).then(([planData, stockSauvegarde]) => {
+        window.supabaseClient ? window.supabaseClient.from('stock_K1').select('*').then(res => res.data || []) : Promise.resolve([])
+    ]).then(([planData, stockSupabase]) => {
         cataloguePlanGlobal = planData || [];
-        if (stockSauvegarde) {
-            try { stockGlobal = JSON.parse(stockSauvegarde); } catch(e) { stockGlobal = []; }
-        }
+        stockGlobal = stockSupabase || [];
         mettreAJourProgression(100);
     }).finally(() => {
         clearTimeout(fallbackLoader);
@@ -410,7 +408,7 @@ function afficherFichePelican(article) {
 
 /**
  * ==============================================================================
- * 6. GESTION DES MODALES DE MOUVEMENT DE STOCK
+ * 6. GESTION DES MODALES DE MOUVEMENT DE STOCK (SUPABASE)
  * ==============================================================================
  */
 function ouvrirModalPlanRep(existant) {
@@ -447,8 +445,8 @@ function fermerModal() {
     contexteMouvement = null;
 }
 
-function validerMouvementStock() {
-    if (!contexteMouvement || !articleCourant) return;
+async function validerMouvementStock() {
+    if (!contexteMouvement || !articleCourant || !window.supabaseClient) return;
 
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
     if (qte <= 0) { alert("Quantité invalide"); return; }
@@ -474,13 +472,48 @@ function validerMouvementStock() {
             String(item.rang || "").toLowerCase() === rang.toLowerCase()
         );
 
+        let nouvelleQte = qte;
         if (typeMvt === 'ENTREE') {
-            if (index !== -1) stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qte;
-            else stockGlobal.push({ plan: articleCourant.plan, rep: articleCourant.rep, symbole: "", intitule: articleCourant.intitule, site, batiment, rang, quantite: qte });
+            if (index !== -1) {
+                nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            }
         } else {
-            if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant ou emplacement introuvable."); return; }
-            stockGlobal[index].quantite -= qte;
+            if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { 
+                alert("Stock insuffisant ou emplacement introuvable."); 
+                return; 
+            }
+            nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) - qte;
         }
+
+        if (index !== -1) {
+            let rowId = stockGlobal[index].id;
+            let { error } = await window.supabaseClient
+                .from('stock_K1')
+                .update({ quantite: nouvelleQte })
+                .eq('id', rowId);
+
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            stockGlobal[index].quantite = nouvelleQte;
+        } else {
+            let nouvelObjet = { 
+                plan: articleCourant.plan, 
+                rep: articleCourant.rep, 
+                symbole: "", 
+                intitule: articleCourant.intitule, 
+                site, 
+                batiment, 
+                rang, 
+                quantite: qte 
+            };
+            let { data, error } = await window.supabaseClient
+                .from('stock_K1')
+                .insert([nouvelObjet])
+                .select();
+
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (data && data.length > 0) stockGlobal.push(data[0]);
+        }
+
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -493,18 +526,30 @@ function validerMouvementStock() {
             String(item.rang || "").toLowerCase() === String(stItem.rang || "").toLowerCase()
         );
 
-        if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant pour ce composant SY !"); return; }
-        stockGlobal[index].quantite -= qte;
+        if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { 
+            alert("Stock insuffisant pour ce composant SY !"); 
+            return; 
+        }
+
+        let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) - qte;
+        let rowId = stockGlobal[index].id;
+
+        let { error } = await window.supabaseClient
+            .from('stock_K1')
+            .update({ quantite: nouvelleQte })
+            .eq('id', rowId);
+
+        if (error) { alert("Erreur Supabase : " + error.message); return; }
+        stockGlobal[index].quantite = nouvelleQte;
     }
 
-    localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
     fermerModal();
 
     let inputPlan = document.getElementById('inputPlan');
     if (inputPlan) inputPlan.value = '';
     reinitialiserFicheEtSaisies();
 
-    alert("✅ Mouvement Pelican enregistré avec succès !");
+    alert("✅ Mouvement Pelican enregistré et synchronisé avec Supabase !");
 }
 
 
