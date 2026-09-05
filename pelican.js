@@ -314,12 +314,12 @@ function afficherFichePelican(article) {
                     <button type="button" onclick="ouvrirModalPlanRep(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
                   </div>`;
 
-    if (existantsPlanRep.length > 0) {
+if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
             let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-            let auteurInfo = ex.user_email ? `<br><small style="color: #666; font-size: 10px;">👤 Par : ${ex.user_email}</small>` : '';
+            // ⚠️ E-mail supprimé ici aussi
             htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
-                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b> ${auteurInfo}</div>
+                <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                 <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
             </div>`;
         });
