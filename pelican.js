@@ -298,6 +298,7 @@ function afficherFichePelican(article) {
             .catch(() => {});
     }
 
+    // Stock de l'ensemble (Plan + Repère)
     let existantsPlanRep = stockGlobal.filter(item =>
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
@@ -349,8 +350,9 @@ function afficherFichePelican(article) {
         contenuEclate.innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic;">Aucun sous-symbole éclaté.</div>';
     } else {
         composantsPlan.forEach(c => {
-            // RECHERCHE STOCK SY : Uniquement par symbole (comme demandé)
+            // RECHERCHE STOCK SY : On combine le plan propre du composant (c.plan) et son symbole (c.symbole)
             let stockSy = stockGlobal.filter(s =>
+                String(s.plan || "").trim() === String(c.plan || "").trim() &&
                 String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase() &&
                 String(s.symbole || "").trim() !== "" &&
                 String(s.symbole || "").trim() !== "0"
@@ -363,7 +365,6 @@ function afficherFichePelican(article) {
             let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
             let imgId = `img_sy_${c.symbole}_${Math.random().toString(36).substr(2, 5)}`;
 
-            // Bouton ➕ Stock retiré de la liste éclatée des SY
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
                 <img id="${imgId}" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ELoading...%3C/text%3E%3C/svg%3E" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;">
                 <div style="flex-grow: 1; font-size: 12px;">
@@ -376,9 +377,9 @@ function afficherFichePelican(article) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
                     let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
-                    let auteurInfoSy = st.user_email ? ` <small style="color: #666; font-size: 10px;">(${st.user_email})</small>` : '';
+                    // ⚠️ E-mail supprimé ici pour alléger l'affichage
                     htmlSy += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)${auteurInfoSy}</span>
+                        <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
                         <button type="button" onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-weight: bold; cursor: pointer;">➖ Sortie</button>
                     </div>`;
                 });
@@ -409,7 +410,6 @@ function afficherFichePelican(article) {
     conteneurComposants.appendChild(contenuEclate);
     document.getElementById('resultat').style.display = 'block';
 }
-
 
 /**
  * ==============================================================================
