@@ -349,9 +349,11 @@ function afficherFichePelican(article) {
         contenuEclate.innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic;">Aucun sous-symbole éclaté.</div>';
     } else {
         composantsPlan.forEach(c => {
+            // RECHERCHE STOCK SY : Uniquement par symbole (comme demandé)
             let stockSy = stockGlobal.filter(s =>
-                String(s.plan || "").trim() === String(c.plan || "").trim() &&
-                String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase()
+                String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase() &&
+                String(s.symbole || "").trim() !== "" &&
+                String(s.symbole || "").trim() !== "0"
             );
 
             let row = document.createElement('div');
@@ -361,13 +363,13 @@ function afficherFichePelican(article) {
             let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
             let imgId = `img_sy_${c.symbole}_${Math.random().toString(36).substr(2, 5)}`;
 
+            // Bouton ➕ Stock retiré de la liste éclatée des SY
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
                 <img id="${imgId}" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ELoading...%3C/text%3E%3C/svg%3E" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
                 </div>
-                <button type="button" onclick="ouvrirModalAjoutSy(${cStr})" style="background: #28a745; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 11px; cursor: pointer;">➕ Stock</button>
             </div>`;
 
             if (stockSy.length > 0) {
@@ -479,7 +481,7 @@ async function validerMouvementStock() {
 
     let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
 
-    // --- 1. ENSEMBLE (PLAN / REP) : ON NE TOUCHE À RIEN, ON LAISSE TEL QUEL ---
+    // --- 1. ENSEMBLE (PLAN / REP) ---
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
@@ -541,11 +543,10 @@ async function validerMouvementStock() {
             if (data && data.length > 0) stockGlobal.push(data[0]);
         }
 
-    // --- 2. SY_AJOUT : CORRECTION POUR SAUVEGARDE SUPABASE FORCÉE ---
+    // --- 2. SY_AJOUT ---
     } else if (contexteMouvement.type === 'SY_AJOUT') {
         let comp = contexteMouvement.composant;
 
-        // Recherche dans le stock global d'un enregistrement existant pour ce SY et cet emplacement
         let index = stockGlobal.findIndex(item =>
             String(item.plan || "").trim() === String(comp.plan || "").trim() &&
             String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
@@ -555,7 +556,6 @@ async function validerMouvementStock() {
         );
 
         if (index !== -1) {
-            // Mise à jour de la quantité en base Supabase
             let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
             let rowId = stockGlobal[index].id;
             
@@ -568,7 +568,6 @@ async function validerMouvementStock() {
             stockGlobal[index].quantite = nouvelleQte;
             stockGlobal[index].user_email = currentUserEmail;
         } else {
-            // Insertion d'une nouvelle ligne dans Supabase avec le bon repère et le symbole SY
             let nouvelObjet = {
                 plan: comp.plan,
                 rep: articleCourant.rep || "000000",
@@ -592,7 +591,7 @@ async function validerMouvementStock() {
             }
         }
 
-    // --- 3. SY_SORTIE : GESTION SUPABASE (SUPPRESSION SI 0 OU UPDATE) ---
+    // --- 3. SY_SORTIE ---
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -636,10 +635,9 @@ async function validerMouvementStock() {
     let inputPlan = document.getElementById('inputPlan');
     if (inputPlan) inputPlan.value = planRecherche;
     
-    // Rafraîchissement direct de l'affichage de la fiche
     afficherFichePelican(articleRecherche);
 
-    alert("✅ Mouvement SY enregistré et synchronisé dans Supabase avec succès !");
+    alert("✅ Mouvement enregistré et synchronisé dans Supabase avec succès !");
 }
 
 
