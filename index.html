@@ -68,7 +68,7 @@
         <div id="ongletPelican" style="display: block;">
             <div style="background: #f1f3f5; padding: 12px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ced4da;">
                 <div style="position: relative;">
-                    <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche BOB (Plan / Repère) :</label>
+                    <label style="display: block; font-weight: bold; font-size: 13px; color: #333; margin-bottom: 4px;">🔍 Recherche (Plan / Repère) :</label>
                     <input type="text" id="inputPlan" inputmode="numeric" placeholder="Ex: 12345..." style="width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
                     <div id="listePlanResultats" style="position: absolute; left: 0; right: 0; z-index: 1000;"></div>
                 </div>
@@ -224,7 +224,7 @@
             let ongletJson = document.getElementById('ongletJson');
             let btnPelican = document.getElementById('btnTabPelican');
             let btnJson = document.getElementById('btnTabJson');
-            let bandeau = document.getElementById('bandeauVersion');
+            /*let bandeau = document.getElementById('bandeauVersion');*/
 
             if (nomOnglet === 'pelican') {
                 ongletPelican.style.display = 'block';
@@ -233,8 +233,8 @@
                 btnPelican.style.color = 'white';
                 btnJson.style.background = '#e9ecef';
                 btnJson.style.color = '#333';
-                bandeau.style.background = '#0056b3';
-                bandeau.textContent = 'Mode Ensemble Actif';
+               /* bandeau.style.background = '#0056b3';
+                bandeau.textContent = 'Mode Ensemble Actif';*/
             } else {
                 ongletPelican.style.display = 'none';
                 ongletJson.style.display = 'block';
@@ -242,8 +242,8 @@
                 btnJson.style.color = 'white';
                 btnPelican.style.background = '#e9ecef';
                 btnPelican.style.color = '#333';
-                bandeau.style.background = '#28a745';
-                bandeau.textContent = 'Mode SY (JSON) Actif';
+               /* bandeau.style.background = '#28a745';
+                bandeau.textContent = 'Mode SY (JSON) Actif';*/
             }
         }
 
