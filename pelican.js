@@ -55,7 +55,6 @@ async function initialiserAcces() {
 async function verifierValidationEmail(email) {
     if (!window.supabaseClient) return false;
     
-    // On enlève le .single() qui provoque souvent le 406 s'il y a un souci de format ou de 0 ligne
     const { data, error } = await window.supabaseClient
         .from('app_bob')
         .select('stock_luc')
@@ -63,7 +62,6 @@ async function verifierValidationEmail(email) {
 
     if (error || !data || data.length === 0) return false;
     
-    // On retourne la valeur du premier résultat trouvé
     return data[0].stock_luc === true;
 }
 
@@ -81,11 +79,12 @@ async function envoyerDemandeAcces() {
         return;
     }
 
-    const { data: existant } = await window.supabaseClient
+    const { data: existantList } = await window.supabaseClient
         .from('app_bob')
         .select('id, stock_luc')
-        .eq('email', email)
-        .single();
+        .eq('email', email);
+
+    const existant = (existantList && existantList.length > 0) ? existantList[0] : null;
 
     if (existant) {
         localStorage.setItem('pelican_user_email', email);
@@ -99,7 +98,6 @@ async function envoyerDemandeAcces() {
         return;
     }
 
-    // Par défaut, stock_luc est false (dééfini dans la table SQL)
     const { error } = await window.supabaseClient
         .from('app_bob')
         .insert([{ prenom, nom, email, stock_luc: false }]);
@@ -301,7 +299,6 @@ function afficherFichePelican(article) {
             .catch(() => {});
     }
 
-    // Stock de l'ensemble (Plan + Repère)
     let existantsPlanRep = stockGlobal.filter(item =>
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
@@ -320,7 +317,6 @@ function afficherFichePelican(article) {
 if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
             let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
-            // ⚠️ E-mail supprimé ici aussi
             htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
                 <div>📍 Site: <b>${ex.site}</b> | Bât: <b>${ex.batiment}</b> | Rang: <b>${ex.rang}</b></div>
                 <div style="background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">Qte: ${ex.quantite}</div>
@@ -353,7 +349,6 @@ if (existantsPlanRep.length > 0) {
         contenuEclate.innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic;">Aucun sous-symbole éclaté.</div>';
     } else {
         composantsPlan.forEach(c => {
-            // RECHERCHE STOCK SY : On combine le plan propre du composant (c.plan) et son symbole (c.symbole)
             let stockSy = stockGlobal.filter(s =>
                 String(s.plan || "").trim() === String(c.plan || "").trim() &&
                 String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase() &&
@@ -380,7 +375,6 @@ if (existantsPlanRep.length > 0) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
                     let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
-                    // ⚠️ E-mail supprimé ici pour alléger l'affichage
                     htmlSy += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
                         <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
                         <button type="button" onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-weight: bold; cursor: pointer;">➖ Sortie</button>
@@ -484,7 +478,6 @@ async function validerMouvementStock() {
 
     let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
 
-    // --- 1. ENSEMBLE (PLAN / REP) ---
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
@@ -546,7 +539,6 @@ async function validerMouvementStock() {
             if (data && data.length > 0) stockGlobal.push(data[0]);
         }
 
-    // --- 2. SY_AJOUT ---
     } else if (contexteMouvement.type === 'SY_AJOUT') {
         let comp = contexteMouvement.composant;
 
@@ -594,7 +586,6 @@ async function validerMouvementStock() {
             }
         }
 
-    // --- 3. SY_SORTIE ---
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
