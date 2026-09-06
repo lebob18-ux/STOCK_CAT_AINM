@@ -26,9 +26,8 @@ let dernierSiteSaisi = '';
 let dernierBatimentSaisi = '';
 
 
-/**
  * ==============================================================================
- * 2. GESTION DE L'ACCÈS / INSCRIPTION (Supabase - utilisateurs_K1)
+ * 2. GESTION DE L'ACCÈS / INSCRIPTION (Supabase - app_bob)
  * ==============================================================================
  */
 async function initialiserAcces() {
@@ -44,7 +43,7 @@ async function initialiserAcces() {
         overlay.style.display = 'flex';
         document.getElementById('form-demande').style.display = 'none';
         document.getElementById('attente-validation').style.display = 'block';
-        document.getElementById('auth-message').textContent = 'Votre demande est en cours de validation.';
+        document.getElementById('auth-message').textContent = 'Votre accès à STOCK_LUC est en attente de validation.';
         return;
     }
 
@@ -56,12 +55,13 @@ async function initialiserAcces() {
 async function verifierValidationEmail(email) {
     if (!window.supabaseClient) return false;
     const { data, error } = await window.supabaseClient
-        .from('utilisateurs_K1')
-        .select('valide')
+        .from('app_bob')
+        .select('stock_luc')
         .eq('email', email)
         .single();
     if (error || !data) return false;
-    return data.valide === true;
+    // On vérifie spécifiquement si la case stock_luc est cochée à true
+    return data.stock_luc === true;
 }
 
 async function envoyerDemandeAcces() {
@@ -79,26 +79,27 @@ async function envoyerDemandeAcces() {
     }
 
     const { data: existant } = await window.supabaseClient
-        .from('utilisateurs_K1')
-        .select('id, valide')
+        .from('app_bob')
+        .select('id, stock_luc')
         .eq('email', email)
         .single();
 
     if (existant) {
         localStorage.setItem('pelican_user_email', email);
-        if (existant.valide) {
+        if (existant.stock_luc) {
             document.getElementById('auth-overlay').style.display = 'none';
             return;
         }
         document.getElementById('form-demande').style.display = 'none';
         document.getElementById('attente-validation').style.display = 'block';
-        document.getElementById('auth-message').textContent = 'Votre demande est déjà enregistrée, en attente de validation.';
+        document.getElementById('auth-message').textContent = 'Votre e-mail existe déjà, en attente de validation de l\'accès.';
         return;
     }
 
+    // Par défaut, stock_luc est false (dééfini dans la table SQL)
     const { error } = await window.supabaseClient
-        .from('utilisateurs_K1')
-        .insert([{ prenom, nom, email, valide: false }]);
+        .from('app_bob')
+        .insert([{ prenom, nom, email, stock_luc: false }]);
 
     if (error) {
         alert('Erreur lors de l\'envoi de la demande : ' + error.message);
@@ -118,10 +119,9 @@ async function verifierAcces() {
     if (valide) {
         document.getElementById('auth-overlay').style.display = 'none';
     } else {
-        alert('Pas encore validé. Revenez plus tard.');
+        alert('Accès non validé pour STOCK_LUC.');
     }
 }
-
 
 /**
  * ==============================================================================
