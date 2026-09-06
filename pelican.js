@@ -54,14 +54,17 @@ async function initialiserAcces() {
 
 async function verifierValidationEmail(email) {
     if (!window.supabaseClient) return false;
+    
+    // On enlève le .single() qui provoque souvent le 406 s'il y a un souci de format ou de 0 ligne
     const { data, error } = await window.supabaseClient
         .from('app_bob')
         .select('stock_luc')
-        .eq('email', email)
-        .single();
-    if (error || !data) return false;
-    // On vérifie spécifiquement si la case stock_luc est cochée à true
-    return data.stock_luc === true;
+        .eq('email', email);
+
+    if (error || !data || data.length === 0) return false;
+    
+    // On retourne la valeur du premier résultat trouvé
+    return data[0].stock_luc === true;
 }
 
 async function envoyerDemandeAcces() {
