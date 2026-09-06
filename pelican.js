@@ -25,7 +25,7 @@ let contexteMouvement = null;
 let dernierSiteSaisi = '';
 let dernierBatimentSaisi = '';
 
-
+/**
  * ==============================================================================
  * 2. GESTION DE L'ACCÈS / INSCRIPTION (Supabase - app_bob)
  * ==============================================================================
