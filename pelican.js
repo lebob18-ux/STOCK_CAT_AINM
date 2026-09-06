@@ -1,6 +1,22 @@
-const VERSION_APP = "PELICAN-ONGLET-V1";
+/**
+ * ==============================================================================
+ * 1. CONFIGURATION & INITIALISATION GLOBALE
+ * ==============================================================================
+ */
+const PELICAN_VERSION_APP = "PELICAN-UNIFIED-V1";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
-const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
+const SUPABASE_URL = "https://thbqkeugjvsxbryfnzuo.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_2-Ij-nrTPeK6rB-kSD-QTg_b42zNakq";
+
+if (typeof window.supabaseClient === 'undefined') {
+    window.supabaseClient = window.supabaseClientAuth || null;
+    if (!window.supabaseClient && typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
+        window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+    if (!window.supabaseClient) {
+        console.warn("⚠️ Le client Supabase n'est pas encore disponible.");
+    }
+}
 
 let cataloguePlanGlobal = [];
 let stockGlobal = [];
@@ -9,12 +25,123 @@ let contexteMouvement = null;
 let dernierSiteSaisi = '';
 let dernierBatimentSaisi = '';
 
+/**
+ * ==============================================================================
+ * 2. GESTION DE L'ACCÈS / INSCRIPTION (Supabase - app_bob)
+ * ==============================================================================
+ */
+async function initialiserAcces() {
+    const emailLocal = localStorage.getItem('pelican_user_email');
+    const overlay = document.getElementById('auth-overlay');
+
+    if (emailLocal) {
+        const valide = await verifierValidationEmail(emailLocal);
+        if (valide) {
+            overlay.style.display = 'none';
+            return;
+        }
+        overlay.style.display = 'flex';
+        document.getElementById('form-demande').style.display = 'none';
+        document.getElementById('attente-validation').style.display = 'block';
+        document.getElementById('auth-message').textContent = 'Votre accès à STOCK_LUC est en attente de validation.';
+        return;
+    }
+
+    overlay.style.display = 'flex';
+    document.getElementById('form-demande').style.display = 'block';
+    document.getElementById('attente-validation').style.display = 'none';
+}
+
+async function verifierValidationEmail(email) {
+    if (!window.supabaseClient) return false;
+    
+    const { data, error } = await window.supabaseClient
+        .from('app_bob')
+        .select('stock_luc')
+        .eq('email', email);
+
+    if (error || !data || data.length === 0) return false;
+    
+    return data[0].stock_luc === true;
+}
+
+async function envoyerDemandeAcces() {
+    const prenom = document.getElementById('req-prenom').value.trim();
+    const nom = document.getElementById('req-nom').value.trim();
+    const email = document.getElementById('req-email').value.trim();
+
+    if (!prenom || !nom || !email) {
+        alert('Veuillez remplir tous les champs.');
+        return;
+    }
+    if (!window.supabaseClient) {
+        alert('Connexion Supabase non disponible.');
+        return;
+    }
+
+    const { data: existantList } = await window.supabaseClient
+        .from('app_bob')
+        .select('id, stock_luc')
+        .eq('email', email);
+
+    const existant = (existantList && existantList.length > 0) ? existantList[0] : null;
+
+    if (existant) {
+        localStorage.setItem('pelican_user_email', email);
+        if (existant.stock_luc) {
+            document.getElementById('auth-overlay').style.display = 'none';
+            return;
+        }
+        document.getElementById('form-demande').style.display = 'none';
+        document.getElementById('attente-validation').style.display = 'block';
+        document.getElementById('auth-message').textContent = 'Votre e-mail existe déjà, en attente de validation de l\'accès.';
+        return;
+    }
+
+    const { error } = await window.supabaseClient
+        .from('app_bob')
+        .insert([{ prenom, nom, email, stock_luc: false }]);
+
+    if (error) {
+        alert('Erreur lors de l\'envoi de la demande : ' + error.message);
+        return;
+    }
+
+    localStorage.setItem('pelican_user_email', email);
+    document.getElementById('form-demande').style.display = 'none';
+    document.getElementById('attente-validation').style.display = 'block';
+    document.getElementById('auth-message').textContent = 'Demande envoyée ! En attente de validation par l\'administrateur.';
+}
+
+async function verifierAcces() {
+    const email = localStorage.getItem('pelican_user_email');
+    if (!email) return;
+    const valide = await verifierValidationEmail(email);
+    if (valide) {
+        document.getElementById('auth-overlay').style.display = 'none';
+    } else {
+        alert('Accès non validé pour STOCK_LUC.');
+    }
+}
+
+/**
+ * ==============================================================================
+ * 3. FONCTIONS UTILITAIRES & INTERFACE (Loader / Reset)
+ * ==============================================================================
+ */
 function masquerLoader() {
     let loader = document.getElementById('loaderGlobal');
     if (loader) {
         loader.style.opacity = '0';
         loader.style.transition = 'opacity 0.3s ease';
         setTimeout(() => loader.remove(), 300);
+    }
+}
+
+function mettreAJourProgression(pourcentage) {
+    let barre = document.getElementById('barreProgression');
+    if (barre) {
+        barre.style.width = pourcentage + '%';
     }
 }
 
@@ -38,10 +165,18 @@ function reinitialiserFicheEtSaisies() {
     if (conteneurComposants) conteneurComposants.innerHTML = '';
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-    setTimeout(masquerLoader, 2000);
 
-    console.log(`%c[PELICAN MODE] : ${VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
+/**
+ * ==============================================================================
+ * 4. CHARGEMENT DES DONNÉES (Excel PELICAN1.xlsx & Stock Supabase)
+ * ==============================================================================
+ */
+window.addEventListener('DOMContentLoaded', () => {
+    const fallbackLoader = setTimeout(masquerLoader, 3000);
+
+    initialiserAcces();
+
+    console.log(`%c[PELICAN MODE] : ${PELICAN_VERSION_APP}`, "background: #0056b3; color: white; padding: 4px; font-size: 14px; font-weight: bold;");
 
     ['inputPlan', 'stockSite', 'stockBatiment', 'stockRang', 'stockQuantite'].forEach(id => {
         let el = document.getElementById(id);
@@ -50,36 +185,56 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    mettreAJourProgression(40);
+
     Promise.all([
-        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx').then(res => res.arrayBuffer()).then(buffer => {
-            let workbook = XLSX.read(buffer, { type: 'array' });
-            let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
-            return donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "").map(row => ({
-                pelican: String(row.PELICAN || "").trim(),
-                plan: String(row.PLAN || "").trim(),
-                rep: (String(row.REP || "").trim() === "" || String(row.REP || "").trim() === "******") ? "000000" : String(row.REP || "").trim(),
-                intitule: String(row.INT_PLAN || "").trim(),
-                symbole: String(row.SYMBOLE_ECLATE || "").trim(),
-                quantite: parseInt(row.QUANTITE) || 1,
-                designation: String(row.DESIGNATION || "").trim()
-            }));
-        }).catch(() => []),
-        Promise.resolve(localStorage.getItem('stock_local_sauvegarde'))
-    ]).then(([planData, stockSauvegarde]) => {
+        fetch(GITHUB_BASE_URL + 'PELICAN1.xlsx')
+            .then(res => {
+                if (!res.ok) throw new Error("Erreur réseau PELICAN1.xlsx");
+                return res.arrayBuffer();
+            })
+            .then(buffer => {
+                mettreAJourProgression(80);
+                let workbook = XLSX.read(buffer, { type: 'array' });
+                let donneesBrutes = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                return donneesBrutes.filter(row => row && row.PLAN !== undefined && String(row.PLAN).trim() !== "").map(row => ({
+                    pelican: String(row.PELICAN || "").trim(),
+                    plan: String(row.PLAN || "").trim(),
+                    rep: (String(row.REP || "").trim() === "" || String(row.REP || "").trim() === "******") ? "000000" : String(row.REP || "").trim(),
+                    intitule: String(row.INT_PLAN || "").trim(),
+                    symbole: String(row.SYMBOLE_ECLATE || "").trim(),
+                    quantite: parseInt(row.QUANTITE) || 1,
+                    designation: String(row.DESIGNATION || "").trim()
+                }));
+            })
+            .catch(err => {
+                console.warn("⚠️ Impossible de charger PELICAN1.xlsx :", err);
+                return [];
+            }),
+        window.supabaseClient ? window.supabaseClient.from('stock_K1').select('*').then(res => res.data || []) : Promise.resolve([])
+    ]).then(([planData, stockSupabase]) => {
         cataloguePlanGlobal = planData || [];
-        if (stockSauvegarde) stockGlobal = JSON.parse(stockSauvegarde);
+        stockGlobal = stockSupabase || [];
+        mettreAJourProgression(100);
     }).finally(() => {
-        masquerLoader();
+        clearTimeout(fallbackLoader);
+        setTimeout(masquerLoader, 200);
     });
 
-    document.getElementById('inputPlan')?.addEventListener('input', () => { 
+    document.getElementById('inputPlan')?.addEventListener('input', () => {
         reinitialiserFicheEtSaisies();
-        afficherSuggestionsPelican(); 
+        afficherSuggestionsPelican();
     });
 });
 
+
+/**
+ * ==============================================================================
+ * 5. MOTEUR DE RECHERCHE & AFFICHAGE DE LA FICHE ARTICLE
+ * ==============================================================================
+ */
 function afficherSuggestionsPelican() {
-    let container = document.getElementById('listePlanResultats') || document.getElementById('suggestions');
+    let container = document.getElementById('listePlanResultats');
     if (!container) return;
     container.innerHTML = '';
     let recherchePlan = document.getElementById('inputPlan').value.toLowerCase().trim();
@@ -101,7 +256,7 @@ function afficherSuggestionsPelican() {
 
     let wrapper = document.createElement('div');
     wrapper.style.cssText = "background: white; border: 1px solid #ccc; border-radius: 4px; max-height: 280px; overflow-y: auto; position: absolute; z-index: 1000; left: 0; right: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.15);";
-    
+
     resultatsUniques.forEach(article => {
         let div = document.createElement('div');
         div.style.cssText = "padding: 10px; border-bottom: 1px solid #eee; cursor: pointer; font-size: 14px;";
@@ -122,27 +277,44 @@ function afficherFichePelican(article) {
     document.getElementById('resRep').textContent = article.rep === "000000" ? "Sans repère" : (article.rep || '-');
     document.getElementById('resIntitule').textContent = article.intitule || '-';
 
-    let img = document.getElementById('imgPiece');
     let plan6 = String(article.plan).trim().padStart(6, '0');
-    img.src = `${GITHUB_IMG_URL}${plan6}.jpg`;
-    img.onerror = () => { img.src = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E'; };
+    let cheminImage = `${plan6}.jpg`;
 
-    let existantsPlanRep = stockGlobal.filter(item => 
+    let img = document.getElementById('imgPiece');
+    let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+
+    if (img) {
+        img.src = imageParDefaut;
+        img.onerror = () => { img.src = imageParDefaut; };
+    }
+
+    if (window.supabaseClient) {
+        window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(cheminImage, 60)
+            .then(({ data, error }) => {
+                let elImg = document.getElementById('imgPiece');
+                if (elImg && data && !error) {
+                    elImg.src = data.signedUrl;
+                }
+            })
+            .catch(() => {});
+    }
+
+    let existantsPlanRep = stockGlobal.filter(item =>
         String(item.plan || "").trim() === String(article.plan || "").trim() &&
         String(item.rep || "").trim() === String(article.rep || "").trim() &&
-        (!item.symbole || item.symbole === "")
+        (!item.symbole || item.symbole === "" || item.symbole === "0")
     );
 
     let divStock = document.getElementById('infoStockActuel');
     divStock.style.display = 'block';
-    
+
     let htmlStock = `<div style="background: #f8f9fa; border: 1px solid #ccc; padding: 10px; border-radius: 6px;">`;
     htmlStock += `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                     <strong style="font-size: 13px; color: #0056b3;">📦 Emplacements Stock Ensemble :</strong>
                     <button type="button" onclick="ouvrirModalPlanRep(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
                   </div>`;
 
-    if (existantsPlanRep.length > 0) {
+if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
             let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
             htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
@@ -177,16 +349,22 @@ function afficherFichePelican(article) {
         contenuEclate.innerHTML = '<div style="font-size: 13px; color: #666; font-style: italic;">Aucun sous-symbole éclaté.</div>';
     } else {
         composantsPlan.forEach(c => {
-            let stockSy = stockGlobal.filter(s => String(s.plan || "").trim() === String(c.plan || "").trim() && String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase());
+            let stockSy = stockGlobal.filter(s =>
+                String(s.plan || "").trim() === String(c.plan || "").trim() &&
+                String(s.symbole || "").trim().toLowerCase() === String(c.symbole || "").trim().toLowerCase() &&
+                String(s.symbole || "").trim() !== "" &&
+                String(s.symbole || "").trim() !== "0"
+            );
 
             let row = document.createElement('div');
             row.style.cssText = "background: #fff; border: 1px solid #ced4da; padding: 8px; border-radius: 6px; margin-bottom: 8px;";
-            
+
             let intituleSy = c.designation || "Sans intitulé";
             let cStr = JSON.stringify(c).replace(/"/g, '&quot;');
+            let imgId = `img_sy_${c.symbole}_${Math.random().toString(36).substr(2, 5)}`;
 
             let htmlSy = `<div style="display: flex; gap: 8px; align-items: center;">
-                <img src="${GITHUB_IMG_URL}${c.symbole}.jpg" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ENo img%3C/text%3E%3C/svg%3E'">
+                <img id="${imgId}" src="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2245%22%3E%3Crect width=%2260%22 height=%2245%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2255%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%229%22 fill=%22%23999%22%3ELoading...%3C/text%3E%3C/svg%3E" style="width: 80px; height: 60px; object-fit: contain; border: 1px solid #ccc; background: #fff;">
                 <div style="flex-grow: 1; font-size: 12px;">
                     <strong style="color: #0056b3;">N° SY : ${c.symbole}</strong> | Plan : <b>${c.plan}</b> | Requis : <b>${c.quantite}</b><br>
                     <span style="color: #222; font-weight: 600;">Intitulé : ${intituleSy}</span>
@@ -197,9 +375,9 @@ function afficherFichePelican(article) {
                 htmlSy += `<div style="margin-top: 6px; border-top: 1px solid #eee; padding-top: 4px;">`;
                 stockSy.forEach(st => {
                     let stStr = JSON.stringify(st).replace(/"/g, '&quot;');
-                    htmlSy += `<div onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
+                    htmlSy += `<div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 5px; border-radius: 4px; font-size: 11px; margin-top: 3px; display: flex; justify-content: space-between; align-items: center;">
                         <span>📍 <b>${st.site}</b> / ${st.batiment} / ${st.rang} (<b>Stock: ${st.quantite}</b>)</span>
-                        <span style="background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-weight: bold;">➖ Sortie</span>
+                        <button type="button" onclick="ouvrirModalSortieSy(${cStr}, ${stStr})" style="background: #dc3545; color: white; border: none; padding: 2px 6px; border-radius: 3px; font-weight: bold; cursor: pointer;">➖ Sortie</button>
                     </div>`;
                 });
                 htmlSy += `</div>`;
@@ -208,6 +386,14 @@ function afficherFichePelican(article) {
             }
             row.innerHTML = htmlSy;
             contenuEclate.appendChild(row);
+
+            if (window.supabaseClient) {
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${c.symbole}.jpg`, 60)
+                    .then(({ data }) => {
+                        let elImg = document.getElementById(imgId);
+                        if (elImg && data) elImg.src = data.signedUrl;
+                    });
+            }
         });
     }
 
@@ -222,16 +408,35 @@ function afficherFichePelican(article) {
     document.getElementById('resultat').style.display = 'block';
 }
 
+/**
+ * ==============================================================================
+ * 6. GESTION DES MODALES DE MOUVEMENT DE STOCK (SUPABASE + USER EMAIL)
+ * ==============================================================================
+ */
 function ouvrirModalPlanRep(existant) {
     contexteMouvement = { type: 'PLAN_REP', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Ensemble" : "Ajouter stock Ensemble";
     document.getElementById('modalSousTitre').textContent = `Plan : ${articleCourant.plan} | Rep : ${articleCourant.rep}`;
     document.getElementById('divTypeMvt').style.display = 'block';
-    
+
     document.getElementById('mouvementType').value = 'ENTREE';
     document.getElementById('stockSite').value = existant ? existant.site : (dernierSiteSaisi || '');
     document.getElementById('stockBatiment').value = existant ? existant.batiment : (dernierBatimentSaisi || '');
     document.getElementById('stockRang').value = existant ? existant.rang : '';
+    document.getElementById('stockQuantite').value = '1';
+
+    document.getElementById('modalOverlay').style.display = 'flex';
+}
+
+function ouvrirModalAjoutSy(composant) {
+    contexteMouvement = { type: 'SY_AJOUT', composant: composant };
+    document.getElementById('modalTitre').textContent = `Ajouter stock Composant SY : ${composant.symbole}`;
+    document.getElementById('modalSousTitre').textContent = `Plan : ${composant.plan} | Intitulé : ${composant.designation || '-'}`;
+    document.getElementById('divTypeMvt').style.display = 'none';
+
+    document.getElementById('stockSite').value = dernierSiteSaisi || '';
+    document.getElementById('stockBatiment').value = dernierBatimentSaisi || '';
+    document.getElementById('stockRang').value = '';
     document.getElementById('stockQuantite').value = '1';
 
     document.getElementById('modalOverlay').style.display = 'flex';
@@ -256,8 +461,8 @@ function fermerModal() {
     contexteMouvement = null;
 }
 
-function validerMouvementStock() {
-    if (!contexteMouvement || !articleCourant) return;
+async function validerMouvementStock() {
+    if (!contexteMouvement || !articleCourant || !window.supabaseClient) return;
 
     let qte = parseInt(document.getElementById('stockQuantite').value) || 0;
     if (qte <= 0) { alert("Quantité invalide"); return; }
@@ -271,25 +476,116 @@ function validerMouvementStock() {
     dernierSiteSaisi = site;
     dernierBatimentSaisi = batiment;
 
+    let currentUserEmail = localStorage.getItem('pelican_user_email') || 'inconnu';
+
     if (contexteMouvement.type === 'PLAN_REP') {
         let typeMvt = document.getElementById('mouvementType').value;
 
         let index = stockGlobal.findIndex(item =>
             String(item.plan || "").trim() === String(articleCourant.plan || "").trim() &&
             String(item.rep || "").trim() === String(articleCourant.rep || "").trim() &&
-            (!item.symbole || item.symbole === "") &&
+            (!item.symbole || item.symbole === "" || item.symbole === "0") &&
             String(item.site || "").toLowerCase() === site.toLowerCase() &&
             String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
             String(item.rang || "").toLowerCase() === rang.toLowerCase()
         );
 
+        let nouvelleQte = qte;
         if (typeMvt === 'ENTREE') {
-            if (index !== -1) stockGlobal[index].quantite = (parseInt(stockGlobal[index].quantite) || 0) + qte;
-            else stockGlobal.push({ plan: articleCourant.plan, rep: articleCourant.rep, symbole: "", intitule: articleCourant.intitule, site, batiment, rang, quantite: qte });
+            if (index !== -1) {
+                nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            }
         } else {
-            if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant ou emplacement introuvable."); return; }
-            stockGlobal[index].quantite -= qte;
+            if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { 
+                alert("Stock insuffisant ou emplacement introuvable."); 
+                return; 
+            }
+            nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) - qte;
         }
+
+        if (index !== -1) {
+            let rowId = stockGlobal[index].id;
+            if (nouvelleQte <= 0) {
+                let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
+                if (error) { alert("Erreur Supabase : " + error.message); return; }
+                stockGlobal.splice(index, 1);
+            } else {
+                let { error } = await window.supabaseClient
+                    .from('stock_K1')
+                    .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                    .eq('id', rowId);
+                if (error) { alert("Erreur Supabase : " + error.message); return; }
+                stockGlobal[index].quantite = nouvelleQte;
+                stockGlobal[index].user_email = currentUserEmail;
+            }
+        } else {
+            let nouvelObjet = { 
+                plan: articleCourant.plan, 
+                rep: articleCourant.rep, 
+                symbole: "", 
+                intitule: articleCourant.intitule, 
+                site, 
+                batiment, 
+                rang, 
+                quantite: qte,
+                user_email: currentUserEmail
+            };
+            let { data, error } = await window.supabaseClient
+                .from('stock_K1')
+                .insert([nouvelObjet])
+                .select();
+
+            if (error) { alert("Erreur Supabase : " + error.message); return; }
+            if (data && data.length > 0) stockGlobal.push(data[0]);
+        }
+
+    } else if (contexteMouvement.type === 'SY_AJOUT') {
+        let comp = contexteMouvement.composant;
+
+        let index = stockGlobal.findIndex(item =>
+            String(item.plan || "").trim() === String(comp.plan || "").trim() &&
+            String(item.symbole || "").trim().toLowerCase() === String(comp.symbole || "").trim().toLowerCase() &&
+            String(item.site || "").toLowerCase() === site.toLowerCase() &&
+            String(item.batiment || "").toLowerCase() === batiment.toLowerCase() &&
+            String(item.rang || "").toLowerCase() === rang.toLowerCase()
+        );
+
+        if (index !== -1) {
+            let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) + qte;
+            let rowId = stockGlobal[index].id;
+            
+            let { error } = await window.supabaseClient
+                .from('stock_K1')
+                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                .eq('id', rowId);
+
+            if (error) { alert("Erreur Supabase (Update SY) : " + error.message); return; }
+            stockGlobal[index].quantite = nouvelleQte;
+            stockGlobal[index].user_email = currentUserEmail;
+        } else {
+            let nouvelObjet = {
+                plan: comp.plan,
+                rep: articleCourant.rep || "000000",
+                symbole: comp.symbole,
+                intitule: comp.designation || articleCourant.intitule,
+                site: site,
+                batiment: batiment,
+                rang: rang,
+                quantite: qte,
+                user_email: currentUserEmail
+            };
+
+            let { data, error } = await window.supabaseClient
+                .from('stock_K1')
+                .insert([nouvelObjet])
+                .select();
+
+            if (error) { alert("Erreur Supabase (Insert SY) : " + error.message); return; }
+            if (data && data.length > 0) {
+                stockGlobal.push(data[0]);
+            }
+        }
+
     } else if (contexteMouvement.type === 'SY_SORTIE') {
         let comp = contexteMouvement.composant;
         let stItem = contexteMouvement.stockItem;
@@ -302,19 +598,48 @@ function validerMouvementStock() {
             String(item.rang || "").toLowerCase() === String(stItem.rang || "").toLowerCase()
         );
 
-        if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { alert("Stock insuffisant pour ce composant SY !"); return; }
-        stockGlobal[index].quantite -= qte;
+        if (index === -1 || (parseInt(stockGlobal[index].quantite) || 0) < qte) { 
+            alert("Stock insuffisant pour ce composant SY !"); 
+            return; 
+        }
+
+        let nouvelleQte = (parseInt(stockGlobal[index].quantite) || 0) - qte;
+        let rowId = stockGlobal[index].id;
+
+        if (nouvelleQte <= 0) {
+            let { error } = await window.supabaseClient.from('stock_K1').delete().eq('id', rowId);
+            if (error) { alert("Erreur Supabase (Delete SY) : " + error.message); return; }
+            stockGlobal.splice(index, 1);
+        } else {
+            let { error } = await window.supabaseClient
+                .from('stock_K1')
+                .update({ quantite: nouvelleQte, user_email: currentUserEmail })
+                .eq('id', rowId);
+            if (error) { alert("Erreur Supabase (Update Sortie SY) : " + error.message); return; }
+            stockGlobal[index].quantite = nouvelleQte;
+            stockGlobal[index].user_email = currentUserEmail;
+        }
     }
 
-    localStorage.setItem('stock_local_sauvegarde', JSON.stringify(stockGlobal));
     fermerModal();
-    
+
+    let planRecherche = articleCourant.plan;
+    let articleRecherche = {...articleCourant};
+
     let inputPlan = document.getElementById('inputPlan');
-    if (inputPlan) inputPlan.value = '';
-    reinitialiserFicheEtSaisies();
+    if (inputPlan) inputPlan.value = planRecherche;
     
-    alert("✅ Mouvement Pelican enregistré avec succès !");
+    afficherFichePelican(articleRecherche);
+
+    alert("✅ Mouvement enregistré et synchronisé dans Supabase avec succès !");
 }
+
+
+/**
+ * ==============================================================================
+ * 7. ACTIONS DIVERSES (Impression, etc.)
+ * ==============================================================================
+ */
 function imprimerFichePelican() {
     window.print();
 }
