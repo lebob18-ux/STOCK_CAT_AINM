@@ -281,11 +281,16 @@ function afficherFichePelican(article) {
     let cheminImage = `${plan6}.jpg`;
 
     let img = document.getElementById('imgPiece');
-    let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3EImage introuvable%3C/text%3E%3C/svg%3E';
+    let imageParDefaut = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22320%22 height=%22200%22%3E%3Crect width=%22320%22 height=%22200%22 fill=%22%23eee%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-size=%2214%22 fill=%22%23aaa%22%3ELoading...%3C/text%3E%3C/svg%3E';
 
     if (img) {
         img.src = imageParDefaut;
-        img.onerror = () => { img.src = imageParDefaut; };
+        img.onerror = () => {
+            if (window.supabaseClient) {
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                    .then(({ data }) => { if (data) img.src = data.signedUrl; });
+            }
+        };
     }
 
     if (window.supabaseClient) {
@@ -294,9 +299,14 @@ function afficherFichePelican(article) {
                 let elImg = document.getElementById('imgPiece');
                 if (elImg && data && !error) {
                     elImg.src = data.signedUrl;
+                } else if (elImg) {
+                    elImg.onerror();
                 }
             })
-            .catch(() => {});
+            .catch(() => {
+                let elImg = document.getElementById('imgPiece');
+                if (elImg) elImg.onerror();
+            });
     }
 
     let existantsPlanRep = stockGlobal.filter(item =>
@@ -314,7 +324,7 @@ function afficherFichePelican(article) {
                     <button type="button" onclick="ouvrirModalPlanRep(null)" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; cursor: pointer;">➕ Ajouter Stock</button>
                   </div>`;
 
-if (existantsPlanRep.length > 0) {
+    if (existantsPlanRep.length > 0) {
         existantsPlanRep.forEach(ex => {
             let exStr = JSON.stringify(ex).replace(/"/g, '&quot;');
             htmlStock += `<div onclick="ouvrirModalPlanRep(${exStr})" style="cursor: pointer; background: #d4edda; border: 1px solid #c3e6cb; padding: 6px; border-radius: 4px; font-size: 12px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center;">
@@ -389,9 +399,25 @@ if (existantsPlanRep.length > 0) {
 
             if (window.supabaseClient) {
                 window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl(`${c.symbole}.jpg`, 60)
-                    .then(({ data }) => {
+                    .then(({ data, error }) => {
                         let elImg = document.getElementById(imgId);
-                        if (elImg && data) elImg.src = data.signedUrl;
+                        if (elImg && data && !error) {
+                            elImg.src = data.signedUrl;
+                        } else if (elImg) {
+                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                                .then(({ data: fallbackData }) => {
+                                    if (fallbackData) elImg.src = fallbackData.signedUrl;
+                                });
+                        }
+                    })
+                    .catch(() => {
+                        let elImg = document.getElementById(imgId);
+                        if (elImg) {
+                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                                .then(({ data: fallbackData }) => {
+                                    if (fallbackData) elImg.src = fallbackData.signedUrl;
+                                });
+                        }
                     });
             }
         });
