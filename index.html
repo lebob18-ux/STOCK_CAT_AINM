@@ -143,22 +143,24 @@
                     <option value="SORTIE">➖ Sortie / Retrait</option>
                 </select>
             </div>
+<!-- Champ Site (Texte libre + liste de choix des sites existants) -->
+<div style="margin-bottom: 10px;">
+    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Site :</label>
+    <input type="text" id="stockSite" list="sitesList" placeholder="Ex: Atelier A, Entrepôt..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+    <datalist id="sitesList"></datalist>
+</div>
 
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Site :</label>
-                <input type="text" id="stockSite"  placeholder="Ex: MELUN,CORBEIL..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            </div>
+<!-- Champ Bâtiment (Numérique) -->
+<div style="margin-bottom: 10px;">
+    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Bâtiment :</label>
+    <input type="text" id="stockBatiment" inputmode="numeric" placeholder="Ex: 1..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+</div>
 
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Bâtiment :</label>
-                <input type="text" id="stockBatiment" inputmode="numeric" placeholder="Ex: 2..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            </div>
-
-            <div style="margin-bottom: 10px;">
-                <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Rang / Étagère :</label>
-                <input type="text" id="stockRang" inputmode="numeric" placeholder="Ex: 3..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-            </div>
-
+<!-- Champ Rang (Numérique) -->
+<div style="margin-bottom: 10px;">
+    <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Rang :</label>
+    <input type="text" id="stockRang" inputmode="numeric" placeholder="Ex: 1..." style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+</div>
             <div style="margin-bottom: 15px;">
                 <label style="font-size: 12px; font-weight: bold; display: block; margin-bottom: 3px;">Quantité :</label>
                 <input type="number" id="stockQuantite" value="1" min="1" inputmode="numeric" style="width: 100%; padding: 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
