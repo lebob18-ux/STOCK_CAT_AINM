@@ -287,7 +287,7 @@ function afficherFichePelican(article) {
         img.src = imageParDefaut;
         img.onerror = () => {
             if (window.supabaseClient) {
-                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.jpg', 60)
                     .then(({ data }) => { if (data) img.src = data.signedUrl; });
             }
         };
@@ -404,7 +404,7 @@ function afficherFichePelican(article) {
                         if (elImg && data && !error) {
                             elImg.src = data.signedUrl;
                         } else if (elImg) {
-                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.jpg', 60)
                                 .then(({ data: fallbackData }) => {
                                     if (fallbackData) elImg.src = fallbackData.signedUrl;
                                 });
@@ -413,7 +413,7 @@ function afficherFichePelican(article) {
                     .catch(() => {
                         let elImg = document.getElementById(imgId);
                         if (elImg) {
-                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.png', 60)
+                            window.supabaseClient.storage.from('MIGNATURE_K1').createSignedUrl('manquante.jpg', 60)
                                 .then(({ data: fallbackData }) => {
                                     if (fallbackData) elImg.src = fallbackData.signedUrl;
                                 });
