@@ -1,4 +1,4 @@
-const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 13-45";
+const VERSION_APP = "19-ENSEMBLE-SY-intitul-clean 13-45 + Datalist Sites";
 const GITHUB_BASE_URL = "https://raw.githubusercontent.com/lebob18-ux/MIGNATURE_K1/main/";
 const GITHUB_IMG_URL = GITHUB_BASE_URL + "IMG_JPG/";
 
@@ -59,6 +59,14 @@ function reinitialiserFicheEtSaisies() {
     if (divStock) divStock.innerHTML = '';
     let conteneurComposants = document.getElementById('resSymbole');
     if (conteneurComposants) conteneurComposants.innerHTML = '';
+}
+
+function actualiserListeSites() {
+    let sites = [...new Set(stockGlobal.map(item => String(item.site || "").trim()).filter(Boolean))].sort();
+    let listSite = document.getElementById('sitesList');
+    if (listSite) {
+        listSite.innerHTML = sites.map(s => `<option value="${s}">`).join('');
+    }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -380,6 +388,7 @@ function afficherFicheSymboleSeul(symItem) {
 }
 
 function ouvrirModalPlanRep(existant) {
+    actualiserListeSites(); // Mise à jour de la datalist des sites existants
     contexteMouvement = { type: 'PLAN_REP', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Ensemble" : "Ajouter stock Ensemble";
     document.getElementById('modalSousTitre').textContent = `Plan : ${articleCourant.plan} | Rep : ${articleCourant.rep}`;
@@ -396,6 +405,7 @@ function ouvrirModalPlanRep(existant) {
 }
 
 function ouvrirModalStockSymbole(existant) {
+    actualiserListeSites(); // Mise à jour de la datalist des sites existants
     contexteMouvement = { type: 'SYMBOLE_PUR', donnees: existant };
     document.getElementById('modalTitre').textContent = existant ? "Modifier stock Symbole" : "Ajouter stock Symbole";
     document.getElementById('modalSousTitre').textContent = `Symbole : ${articleCourant.symbole}`;
@@ -412,6 +422,7 @@ function ouvrirModalStockSymbole(existant) {
 }
 
 function ouvrirModalSortieSy(composant, stockItem) {
+    actualiserListeSites(); // Mise à jour de la datalist des sites existants
     contexteMouvement = { type: 'SY_SORTIE', composant: composant, stockItem: stockItem };
     document.getElementById('modalTitre').textContent = `Sortie Composant SY : ${composant.symbole}`;
     document.getElementById('modalSousTitre').textContent = `Emplacement : ${stockItem.site} / ${stockItem.batiment} / ${stockItem.rang} (Dispo: ${stockItem.quantite})`;
@@ -539,7 +550,6 @@ async function partagerStockSmartphone() {
             }
         }
     } else {
-        // Fallback téléchargement classique si PC
         let link = document.createElement("a");
         link.href = encodeURI("data:text/csv;charset=utf-8," + csv);
         link.download = nomFichier;
